@@ -1,0 +1,111 @@
+:root {
+  /* ── Page background: warm parchment matching mocks ── */
+  --color-bg: #f5f0e8;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f7f4ee;
+  --color-surface-active: #f0ece4;
+
+  /* Borders */
+  --color-border: #e2dcd2;
+  --color-border-light: #eae5db;
+
+  /* Text */
+  --color-text: #1a1a14;
+  --color-text-secondary: #3d3d35;
+  --color-text-muted: #7a7a6e;
+  --color-text-placeholder: #b0ab9e;
+
+  /* Primary: dark forest green (matches "Get Started" button in mocks) */
+  --color-primary: #1c3f2a;
+  --color-primary-hover: #163220;
+  --color-primary-text: #ffffff;
+
+  /* Accent: warm amber for Pro Tip / progress accents */
+  --color-accent: #a07830;
+  --color-accent-light: #f5e9c4;
+  --color-accent-border: rgba(160, 120, 48, 0.18);
+
+  /* Wilbur pink (mascot avatar background) */
+  --color-pink: #f2a5b8;
+  --color-pink-bg: #fde8ef;
+
+  /* State */
+  --color-success: #2d6a4f;
+  --color-success-bg: #d8f3dc;
+  --color-locked: #b8b4ac;
+  --color-locked-bg: #eeebe6;
+
+  /* ── Typography ── */
+  --font-serif: "Lora", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  /* Type scale matching mocks */
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 16px;
+  --text-lg: 19px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 34px;
+  /* Landing hero headline (editorial serif, large) */
+  --text-hero: clamp(2.75rem, 5.5vw, 3.75rem);
+  /* Dead simple section heading */
+  --text-dead-simple: clamp(1.75rem, 3vw, 2.25rem);
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.55;
+  --leading-relaxed: 1.72;
+
+  /* ── Spacing ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ── Layout ── */
+  --announce-height: 36px;
+  --nav-height: 62px;
+  --sidebar-width: 256px;
+  --tutor-width: 288px;
+  --content-max: 700px;
+  --page-max: 1100px;
+  --page-px: 32px;
+
+  /* ── Radius — from mocks: cards use ~12px, pills use full ── */
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 22px;
+  --radius-3xl: 32px;
+  --radius-full: 9999px;
+
+  /* ── Shadows — subtle, warm-tinted ── */
+  --shadow-xs: 0 1px 2px rgba(26, 20, 10, 0.05);
+  --shadow-sm: 0 1px 4px rgba(26, 20, 10, 0.07);
+  --shadow-md: 0 4px 14px rgba(26, 20, 10, 0.09);
+  --shadow-lg: 0 10px 36px rgba(26, 20, 10, 0.11);
+  --shadow-dropdown: 0 8px 28px rgba(26, 20, 10, 0.13);
+
+  /* ── Transitions ── */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 140ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+}
