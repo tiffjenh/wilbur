@@ -103,7 +103,7 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
   const [debugInfo, setDebugInfo] = useState<LearningPathDebugInfo | null>(null);
   const reasonsMap = useRef<Record<string, string[]>>({});
 
-  const isDev = typeof import.meta !== "undefined" && import.meta.env?.DEV === true;
+  const isDev = typeof process !== "undefined" && process.env?.NODE_ENV !== "production";
 
   const generate = useCallback(() => {
     setPathError(null);
