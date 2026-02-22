@@ -1,9 +1,8 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { categories } from "@/lib/stubData";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Icon, IconBox } from "@/components/ui/Icon";
-import { getLessonsForLibraryCategory } from "@/lib/libraryCatalog";
+import { getLibraryCategories, getLessonsForLibraryCategory } from "@/lib/libraryCatalog";
 import { addLesson, loadUserAddedSync } from "@/lib/storage/userAddedLessons";
 import type { Lesson as RecLesson } from "@/lib/recommendation/types";
 
@@ -28,7 +27,7 @@ export const Library: React.FC = () => (
     </p>
 
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(252px, 1fr))", gap: "var(--space-5)" }}>
-      {categories.map((cat) => (
+      {getLibraryCategories().map((cat) => (
         <Link
           key={cat.id}
           to={`/library/${cat.slug}`}
@@ -54,7 +53,7 @@ export const Library: React.FC = () => (
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
-              {cat.lessonCount} lessons
+              {cat.lessonCount} lesson{cat.lessonCount !== 1 ? "s" : ""}
             </span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "var(--text-sm)", color: "var(--color-primary)", fontWeight: 600 }}>
               Explore <Icon name="arrow-right" size={14} color="var(--color-primary)" strokeWidth={2} />
@@ -79,7 +78,7 @@ function groupLessonsByTag(lessons: RecLesson[]): Record<string, RecLesson[]> {
 
 export const LibraryCategory: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const category = categories.find((c) => c.slug === slug);
+  const category = slug ? getLibraryCategories().find((c) => c.slug === slug) ?? null : null;
   const catalogLessons = slug ? getLessonsForLibraryCategory(slug) : [];
   const [addedIds, setAddedIds] = useState<Set<string>>(() => new Set(loadUserAddedSync()));
 

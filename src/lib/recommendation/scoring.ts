@@ -68,7 +68,12 @@ function isLessonAdvancedForProfile(lesson: Lesson, a: QuestionnaireAnswers, fee
   return shouldWarnLesson(lesson, a, feedbackMap);
 }
 
-export function scoreLesson(lesson: Lesson, a: QuestionnaireAnswers, feedbackMap: Record<string, LessonFeedback | undefined>): ScoreResult {
+export function scoreLesson(
+  lesson: Lesson,
+  a: QuestionnaireAnswers,
+  feedbackMap: Record<string, LessonFeedback | undefined>,
+  allLessons: Lesson[] = [],
+): ScoreResult {
   const res: ScoreResult = { score: 0, reasons: [] };
 
   // Base priorities by topic (stability first)
@@ -212,18 +217,46 @@ export function scoreLesson(lesson: Lesson, a: QuestionnaireAnswers, feedbackMap
     if (hasTag(lesson, "taxes-state")) add(res, state.hasStateIncomeTax ? 10 : 6, "state tax relevance");
   }
 
-  // Feedback adjustments (personalization loop)
+  // Tag-based feedback: boost/penalize lessons that share tags with 👍/👎/🧠 lessons
+  if (allLessons.length) {
+    const tagsFromMoreLike = new Set<string>();
+    const tagsFromNotRelevant = new Set<string>();
+    const tagsFromAlreadyKnow = new Set<string>();
+    for (const [lid, fb] of Object.entries(feedbackMap)) {
+      if (!fb) continue;
+      const found = allLessons.find((l) => l.id === lid);
+      if (!found) continue;
+      if (fb === "more_like_this") found.tags.forEach((t) => tagsFromMoreLike.add(t));
+      else if (fb === "not_relevant") found.tags.forEach((t) => tagsFromNotRelevant.add(t));
+      else if (fb === "already_know_this") found.tags.forEach((t) => tagsFromAlreadyKnow.add(t));
+    }
+    const lessonTags = new Set(lesson.tags);
+    for (const t of tagsFromMoreLike) {
+      if (lessonTags.has(t as LessonTag)) {
+        add(res, 8, "similar to lesson you liked");
+        break;
+      }
+    }
+    for (const t of tagsFromNotRelevant) {
+      if (lessonTags.has(t as LessonTag)) {
+        add(res, -10, "similar to lesson you said not relevant");
+        break;
+      }
+    }
+    for (const t of tagsFromAlreadyKnow) {
+      if (lessonTags.has(t as LessonTag)) {
+        add(res, -6, "similar to topic you already know");
+        break;
+      }
+    }
+  }
+
+  // Per-lesson feedback (direct hit: this lesson was rated)
   for (const [lessonId, fb] of Object.entries(feedbackMap)) {
-    if (!fb) continue;
-    if (fb === "not_relevant") {
-      add(res, -2, `feedback dampening from ${lessonId}`);
-    }
-    if (fb === "already_know_this") {
-      add(res, -1, `already know dampening from ${lessonId}`);
-    }
-    if (fb === "more_like_this") {
-      add(res, +2, `boost from ${lessonId}`);
-    }
+    if (!fb || lessonId !== lesson.id) continue;
+    if (fb === "not_relevant") add(res, -15, "you said not relevant");
+    if (fb === "already_know_this") add(res, -20, "you said already know");
+    if (fb === "more_like_this") add(res, +5, "you said more like this");
   }
 
   // Soft penalty for advanced lessons (do not exclude — just rank lower)

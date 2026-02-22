@@ -223,6 +223,39 @@ create policy "delete own user_added_lessons"
 on public.user_added_lessons for delete
 using (auth.uid() = user_id);
 
+-- ──────────────────────────────────────────────────────────────
+-- 8) User resources (saved simulator values, budgets, etc.)
+--    Optional: used when logged in to persist last values / saved budgets
+-- ──────────────────────────────────────────────────────────────
+create table if not exists public.user_resources (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  resource_type text not null,
+  data jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists user_resources_user_id_idx on public.user_resources(user_id);
+create index if not exists user_resources_user_type_idx on public.user_resources(user_id, resource_type);
+
+alter table public.user_resources enable row level security;
+
+create policy "read own user_resources"
+on public.user_resources for select
+using (auth.uid() = user_id);
+
+create policy "insert own user_resources"
+on public.user_resources for insert
+with check (auth.uid() = user_id);
+
+create policy "update own user_resources"
+on public.user_resources for update
+using (auth.uid() = user_id);
+
+create policy "delete own user_resources"
+on public.user_resources for delete
+using (auth.uid() = user_id);
+
 -- lessons and state_tax_profiles: public read (no auth required)
 alter table public.lessons enable row level security;
 create policy "public read lessons"

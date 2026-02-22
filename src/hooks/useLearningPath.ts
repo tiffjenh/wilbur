@@ -159,9 +159,12 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
     return reasons[0] ?? null;
   }, []);
 
-  const handleFeedback = useCallback((lessonId: string, feedback: LessonFeedback) => {
-    saveFeedback(lessonId, feedback); // async but fire-and-forget
-    generate(); // re-score with updated feedback
+  const handleFeedback = useCallback(async (lessonId: string, feedback: LessonFeedback) => {
+    await saveFeedback(lessonId, feedback);
+    if (feedback === "already_know_this") {
+      await markComplete(lessonId);
+    }
+    generate(); // re-score and update path immediately
   }, [generate]);
 
   const handleComplete = useCallback((lessonId: string) => {

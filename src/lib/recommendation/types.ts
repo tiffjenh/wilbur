@@ -89,6 +89,14 @@ export type LessonTag =
   | "real-estate"
   | "systems-habits"
   | "visual-heavy"
+  | "stocks"
+  | "bonds"
+  | "etfs"
+  | "cds"
+  | "brokerage"
+  | "dividends"
+  | "options"
+  | "asset-allocation"
   | LessonLevel;
 
 export type Lesson = {

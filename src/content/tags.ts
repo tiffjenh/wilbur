@@ -27,6 +27,14 @@ export const CORE_TAGS = [
   "crypto",
   "real-estate",
   "systems-habits",
+  "stocks",
+  "bonds",
+  "etfs",
+  "cds",
+  "brokerage",
+  "dividends",
+  "options",
+  "asset-allocation",
 ] as const;
 
 /* ── User Condition Tags (derived from questionnaire answers) ── */

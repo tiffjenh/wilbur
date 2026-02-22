@@ -1,5 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Icon } from "../ui/Icon";
+
+const EXPLAIN_API = "/api/ai/explain";
+const RATE_LIMIT_MS = 2000;
+const MAX_TEXT_LENGTH = 500;
+
+/** Client-side safety: replace advisory phrasing with neutral message */
+const ADVISORY_PATTERNS = ["You should invest", "Buy", "Sell", "I recommend"];
+const NEUTRAL_FALLBACK = "This response was adjusted to maintain educational neutrality.";
+
+function applySafetyFilter(explanation: string): string {
+  const lower = explanation.toLowerCase();
+  for (const phrase of ADVISORY_PATTERNS) {
+    if (lower.includes(phrase.toLowerCase())) return NEUTRAL_FALLBACK;
+  }
+  return explanation;
+}
 
 interface TutorPanelProps {
   selectedText?: string;
@@ -7,21 +23,11 @@ interface TutorPanelProps {
   /** When provided, panel open state is controlled by parent (e.g. for full-width content when closed). */
   open?: boolean;
   onClose?: () => void;
+  /** When false, panel has no close button and is always shown when open (e.g. on Lesson page). */
+  closable?: boolean;
 }
 
 const keyTerms = ["APY", "FDIC", "debit card", "overdraft", "direct deposit"];
-
-const explanations: Record<string, string> = {
-  "Index Fund": "An index fund tracks a market index (e.g. S&P 500). Instead of picking individual stocks, you own a tiny slice of every company in that index — instant diversification at low cost.",
-  "Compound Interest": "Earning interest on your interest. Over time this creates exponential growth. A $1,000 deposit at 7% annual return becomes ~$7,600 in 30 years.",
-  "Diversification": "Spreading investments across different assets so no single loss can sink your portfolio. Classic advice: don't put all your eggs in one basket.",
-  "Dollar-Cost Averaging": "Investing a fixed amount regularly (e.g. $100/month) regardless of price. You buy more shares when prices are low, fewer when high — lowering your average cost over time.",
-  "APY": "Annual Percentage Yield — the real rate of return on savings including compound interest over a year. Higher APY = more money earned on deposits.",
-  "FDIC": "Federal Deposit Insurance Corporation. Insures up to $250,000 per depositor per bank. If your bank fails, the FDIC covers your money.",
-  "debit card": "A card that pulls money directly from your checking account when you make a purchase. You can only spend what you actually have.",
-  "overdraft": "When you spend more than your account balance. Banks may cover it but charge a fee (typically $25–$35 per occurrence).",
-  "direct deposit": "When your employer sends your paycheck electronically straight to your bank account, usually available the same day.",
-};
 
 const ThinkingDots: React.FC = () => (
   <div style={{ display: "flex", alignItems: "center", gap: "5px", padding: "12px 0" }}>
@@ -46,18 +52,24 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
   visible: visibleProp = true,
   open: controlledOpen,
   onClose,
+  closable = true,
 }) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined && onClose !== undefined;
   const isOpen = isControlled ? controlledOpen : internalOpen;
-  const handleClose = isControlled ? () => onClose?.() : () => setInternalOpen(false);
+  const handleClose = closable && isControlled ? () => onClose?.() : closable ? () => setInternalOpen(false) : undefined;
 
   const [activeTerm, setActiveTerm] = useState<string | null>(null);
-  const [inputText, setInputText]   = useState("");
-  const [thinking, setThinking]     = useState(false);
-  const [shownTerm, setShownTerm]   = useState<string | null>(null);
+  const [inputText, setInputText] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const [shownTerm, setShownTerm] = useState<string | null>(null);
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [citations, setCitations] = useState<string[]>([]);
+  const lastRequestRef = useRef<number>(0);
+  const requestInFlightRef = useRef<boolean>(false);
 
-  // When user highlights text, open the panel so content pushes left and AI help shows (uncontrolled only; controlled parent handles opening)
+  // When user highlights text, open the panel so content pushes left (uncontrolled only; controlled parent handles opening)
   useEffect(() => {
     if (selectedText && selectedText.trim() && !isControlled) {
       setInternalOpen(true);
@@ -65,18 +77,47 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
   }, [selectedText, isControlled]);
 
   const triggerTerm = (term: string) => {
-    setThinking(true);
+    if (requestInFlightRef.current) return;
+    setActiveTerm(term);
     setShownTerm(null);
-    setTimeout(() => {
-      setThinking(false);
-      setShownTerm(term);
-    }, 900);
+    setAiExplanation(null);
+    setAiError(null);
+    setCitations([]);
+
+    const now = Date.now();
+    if (now - lastRequestRef.current < RATE_LIMIT_MS) {
+      setAiError("Please wait a moment before asking again.");
+      return;
+    }
+    lastRequestRef.current = now;
+    requestInFlightRef.current = true;
+    setThinking(true);
+
+    const body = JSON.stringify({ selectedText: term.slice(0, MAX_TEXT_LENGTH) });
+    fetch(EXPLAIN_API, { method: "POST", headers: { "Content-Type": "application/json" }, body })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setAiError(typeof data?.error === "string" ? data.error : "We couldn't get an explanation right now. Please try again.");
+          return;
+        }
+        const raw = data.explanation ?? "";
+        setAiExplanation(applySafetyFilter(raw));
+        setCitations(Array.isArray(data.citations) ? data.citations : []);
+        setShownTerm(term);
+      })
+      .catch(() => {
+        setAiError("Something went wrong. Please try again in a moment.");
+      })
+      .finally(() => {
+        setThinking(false);
+        requestInFlightRef.current = false;
+      });
   };
 
   useEffect(() => {
-    if (selectedText && selectedText !== activeTerm) {
-      setActiveTerm(selectedText);
-      triggerTerm(selectedText);
+    if (selectedText && selectedText.trim()) {
+      triggerTerm(selectedText.trim());
     }
   }, [selectedText]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -84,15 +125,16 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
     if (activeTerm === term && shownTerm === term) {
       setActiveTerm(null);
       setShownTerm(null);
+      setAiExplanation(null);
+      setAiError(null);
+      setCitations([]);
     } else {
       setActiveTerm(term);
       triggerTerm(term);
     }
   };
 
-  const explanation = shownTerm
-    ? (explanations[shownTerm] ?? `"${shownTerm}" — this term relates to the financial concept being discussed. Highlight it in the lesson text to see a full explanation from Wilbur.`)
-    : null;
+  const explanation = aiExplanation ?? null;
 
   const visible = visibleProp && isOpen;
 
@@ -121,7 +163,7 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
           animation: "tutorSlideIn var(--duration-normal) var(--ease-out)",
         }}>
-          {/* Header: icon + "Wilbur Helps" + X */}
+          {/* Header: icon + "Wilbur Helps" + X (only when closable) */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <div style={{
@@ -140,32 +182,51 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
                 Wilbur Helps
               </span>
             </div>
-            <button
-              type="button"
-              onClick={handleClose}
-              aria-label="Close Wilbur Helps"
-              style={{
-                padding: 4,
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "var(--color-text-muted)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Icon name="x" size={18} strokeWidth={2} />
-            </button>
+            {closable && handleClose != null && (
+              <button
+                type="button"
+                onClick={handleClose}
+                aria-label="Close Wilbur Helps"
+                style={{
+                  padding: 4,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--color-text-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name="x" size={18} strokeWidth={2} />
+              </button>
+            )}
           </div>
 
           {/* Content */}
           {thinking ? (
             <div style={{ marginBottom: "14px" }}>
-              <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "4px" }}>Thinking…</div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                <Icon name="piggy-bank" size={20} color="var(--color-pink-bg)" strokeWidth={1.5} style={{ filter: "saturate(0.9)" }} />
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Thinking…</span>
+              </div>
               <ThinkingDots />
             </div>
-          ) : shownTerm ? (
+          ) : aiError ? (
+            <div style={{ marginBottom: "14px" }}>
+              <div style={{
+                padding: "10px 12px",
+                backgroundColor: "rgba(217,83,79,0.08)",
+                border: "1px solid rgba(217,83,79,0.25)",
+                borderRadius: "var(--radius-md)",
+                fontSize: "var(--text-sm)",
+                color: "var(--color-text-secondary)",
+                lineHeight: 1.5,
+              }}>
+                {aiError}
+              </div>
+            </div>
+          ) : shownTerm && explanation ? (
             <>
               <div style={{ marginBottom: "12px" }}>
                 <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "6px" }}>You selected:</div>
@@ -190,20 +251,22 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
               }}>
                 {explanation}
               </div>
-              <div style={{ marginBottom: "14px" }}>
-                {[
-                  "Break it down into simpler parts",
-                  "Look for context clues in the surrounding text",
-                  "Consider how it applies to your specific situation",
-                ].map((tip, i) => (
-                  <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "6px", fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-                    <span style={{ color: "var(--color-primary)", flexShrink: 0 }}>•</span>
-                    {tip}
-                  </div>
-                ))}
-              </div>
+              {citations.length > 0 && (
+                <div style={{ marginBottom: "12px" }}>
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--color-text-muted)", marginBottom: "6px" }}>Sources</div>
+                  <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "var(--text-xs)", color: "var(--color-primary)", lineHeight: 1.6 }}>
+                    {citations.map((url, i) => (
+                      <li key={i}>
+                        <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+                          {url}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div style={{ fontSize: "11px", color: "var(--color-text-muted)", lineHeight: 1.5, marginBottom: "12px" }}>
-                Explore related resources at the bottom of this lesson, or highlight a different term for more help.
+                Highlight different text for another explanation, or ask a question below.
               </div>
             </>
           ) : (

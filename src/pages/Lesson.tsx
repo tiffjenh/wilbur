@@ -10,8 +10,7 @@ import { AccountPopup } from "@/components/ui/Modal";
 import { POST_ONBOARDING_PROMPT_SIGNUP } from "@/lib/onboardingSchema";
 import { BlockRenderer } from "@/components/lessonBlocks/BlockRenderer";
 import { HighlightAI } from "@/components/highlightAI/HighlightAI";
-import { recordFeedback } from "@/lib/recommendation/generatePath";
-import { markComplete } from "@/lib/storage/lessonProgress";
+import { markComplete, saveFeedback } from "@/lib/storage/lessonProgress";
 import { shouldWarnLesson } from "@/lib/recommendation/scoring";
 import { LESSON_CATALOG_BY_ID } from "@/content/lessons/lessonCatalog";
 import { loadAnswersFromStorage, toQuestionnaireAnswers } from "@/lib/recommendation/adapter";
@@ -69,9 +68,11 @@ export const Lesson: React.FC = () => {
     navigate("/learning");
   }, [slug, navigate]);
 
-  const handleFeedback = useCallback((type: "more_like_this" | "not_relevant" | "already_know_this") => {
-    if (slug) {
-      recordFeedback({ lessonId: slug, type, timestamp: new Date().toISOString() });
+  const handleFeedback = useCallback(async (type: "more_like_this" | "not_relevant" | "already_know_this") => {
+    if (!slug) return;
+    await saveFeedback(slug, type);
+    if (type === "already_know_this") {
+      await markComplete(slug);
     }
   }, [slug]);
 
@@ -339,18 +340,25 @@ export const Lesson: React.FC = () => {
           )}
         </div>
 
-        {/* Right TutorPanel — controlled so content uses full width when panel is closed */}
+        {/* Right TutorPanel — always persist on lesson, not closable; scrolls with content */}
         <TutorPanel
           key={slug}
           selectedText={selectedText}
           visible
           open={tutorOpen}
           onClose={() => setTutorOpen(false)}
+          closable={false}
         />
       </div>
 
-      {/* HighlightAI — floating tooltip + explain modal */}
-      <HighlightAI containerRef={contentRef} />
+      {/* HighlightAI — floating "Ask Wilbur" near selection; onAsk opens panel and sends text to AI */}
+      <HighlightAI
+        containerRef={contentRef}
+        onAsk={(text) => {
+          setSelectedText(text);
+          setTutorOpen(true);
+        }}
+      />
 
       <AccountPopup
         open={showAccountPopup}

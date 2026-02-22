@@ -7,12 +7,16 @@ import { moduleBLessons } from "./moduleB";
 import { moduleCLessons } from "./moduleC";
 import { moduleDLessons } from "./moduleD";
 import { moduleELessons } from "./moduleE";
+import { moduleFLessons } from "./moduleF";
+import { moduleGLessons } from "./moduleG";
 
 export * from "./moduleA";
 export * from "./moduleB";
 export * from "./moduleC";
 export * from "./moduleD";
 export * from "./moduleE";
+export * from "./moduleF";
+export * from "./moduleG";
 
 /** All lessons from all modules */
 export const ALL_LESSONS: BlockLesson[] = [
@@ -21,6 +25,8 @@ export const ALL_LESSONS: BlockLesson[] = [
   ...moduleCLessons,
   ...moduleDLessons,
   ...moduleELessons,
+  ...moduleFLessons,
+  ...moduleGLessons,
 ];
 
 /** Lesson registry keyed by slug */

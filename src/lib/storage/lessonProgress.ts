@@ -53,6 +53,12 @@ export async function loadCompleted(): Promise<string[]> {
 }
 
 /* ── Feedback ─────────────────────────────────────────────── */
+/**
+ * Feedback storage: localStorage when not logged in, Supabase lesson_feedback when logged in.
+ * Same key (wilbur_lesson_feedback_v2) so data is consistent. Supabase syncs on save;
+ * on load we prefer Supabase when authenticated else localStorage.
+ * Used by: Lesson page (👍👎🧠 buttons), Learning page (path regeneration).
+ */
 
 /** Save a feedback reaction. Saves to both Supabase and localStorage. */
 export async function saveFeedback(lessonId: string, feedback: LessonFeedback): Promise<void> {

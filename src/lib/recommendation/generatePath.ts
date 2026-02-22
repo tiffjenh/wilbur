@@ -41,9 +41,9 @@ export function generateLearningPath(
   // 1) filter out completed only (no gating — all lessons are accessible; scoring demotes advanced)
   const candidates = allLessons.filter(l => !completed.has(l.id));
 
-  // 2) score all
+  // 2) score all (pass allLessons so tag-based feedback can boost/penalize by similar tags)
   const scored = candidates.map(l => {
-    const res = scoreLesson(l, answers, feedbackMap);
+    const res = scoreLesson(l, answers, feedbackMap, allLessons);
     return { lesson: l, score: res.score, reasons: res.reasons };
   });
 

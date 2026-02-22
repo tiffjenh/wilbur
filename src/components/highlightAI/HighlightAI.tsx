@@ -214,11 +214,15 @@ function ExplainModal({ term, onClose }: ExplainModalProps) {
 
 /* ── Main HighlightAI Component ─────────────────────────── */
 
+const MAX_SELECTION_LENGTH = 500;
+
 interface HighlightAIProps {
   containerRef: React.RefObject<HTMLElement | null>;
+  /** When provided, "Ask Wilbur" opens the Wilbur Answers panel and sends text here (truncated to 500 chars). Otherwise the local modal is used. */
+  onAsk?: (text: string) => void;
 }
 
-export function HighlightAI({ containerRef }: HighlightAIProps) {
+export function HighlightAI({ containerRef, onAsk }: HighlightAIProps) {
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [modalTerm, setModalTerm] = useState<string | null>(null);
   const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -230,12 +234,13 @@ export function HighlightAI({ containerRef }: HighlightAIProps) {
       const selection = window.getSelection();
       const text = selection?.toString().trim();
 
-      if (!text || text.length < 2 || text.length > 80) {
+      // Only activate for selections >= 3 characters (no upper limit for display; truncate when sending)
+      if (!text || text.length < 3) {
         setTooltip(null);
         return;
       }
 
-      // Only show tooltip if selection is inside the container
+      // Only show tooltip if selection is inside the lesson content container
       if (containerRef.current) {
         const range = selection?.getRangeAt(0);
         const rect = range?.getBoundingClientRect();
@@ -274,8 +279,13 @@ export function HighlightAI({ containerRef }: HighlightAIProps) {
 
   const handleAsk = (text: string) => {
     setTooltip(null);
-    setModalTerm(text);
     window.getSelection()?.removeAllRanges();
+    const truncated = text.length > MAX_SELECTION_LENGTH ? text.slice(0, MAX_SELECTION_LENGTH) : text;
+    if (onAsk) {
+      onAsk(truncated);
+    } else {
+      setModalTerm(truncated);
+    }
   };
 
   return (
@@ -288,7 +298,7 @@ export function HighlightAI({ containerRef }: HighlightAIProps) {
           onDismiss={() => setTooltip(null)}
         />
       )}
-      {modalTerm && (
+      {!onAsk && modalTerm && (
         <ExplainModal
           term={modalTerm}
           onClose={() => setModalTerm(null)}
