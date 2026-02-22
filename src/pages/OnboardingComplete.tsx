@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MascotPink } from "@/components/ui/MascotPink";
 import { MascotGreen } from "@/components/ui/MascotGreen";
-import { getPersonalizedRoadmap } from "@/lib/stubData";
 import { POST_ONBOARDING_PROMPT_SIGNUP } from "@/lib/onboardingSchema";
 
 /** Pigs + stacked books graphic (teal top, pink bottom) */
@@ -54,14 +53,19 @@ export const OnboardingComplete: React.FC = () => {
       } catch {
         /* ignore */
       }
-      /* Profile was stored by Onboarding.tsx. Use personalized roadmap to find first lesson. */
-      const roadmap = getPersonalizedRoadmap();
-      const firstLesson = roadmap.find((l) => l.status === "available") ?? roadmap[0];
-      if (firstLesson) {
-        navigate(`/lesson/${firstLesson.slug}`, { replace: true });
-      } else {
-        navigate("/learning", { replace: true });
+      /* Use the path just saved by Onboarding (wilbur_learning_path) so redirect matches Learning page. */
+      try {
+        const raw = localStorage.getItem("wilbur_learning_path");
+        const path = raw ? (JSON.parse(raw) as string[]) : null;
+        const firstId = path?.[0];
+        if (firstId) {
+          navigate(`/lesson/${firstId}`, { replace: true });
+          return;
+        }
+      } catch {
+        /* ignore */
       }
+      navigate("/learning", { replace: true });
     }, 4000);
     return () => clearTimeout(t);
   }, [navigate]);

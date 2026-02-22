@@ -171,15 +171,27 @@ export function toQuestionnaireAnswers(data: Partial<OnboardingData>): Questionn
   };
 }
 
+const LS_QUESTIONNAIRE_ANSWERS = "wilbur_questionnaire_answers";
+const LS_ONBOARDING_PROFILE = "wilbur_onboarding_profile";
+
 /**
- * Load questionnaire answers from localStorage and convert.
- * Returns null if no saved answers exist.
+ * Load questionnaire answers from localStorage.
+ * Prefers canonical wilbur_questionnaire_answers (saved by Onboarding on completion);
+ * falls back to wilbur_onboarding_profile (draft form) converted via toQuestionnaireAnswers.
+ * Returns null only if neither source exists.
  */
 export function loadAnswersFromStorage(): QuestionnaireAnswers | null {
   try {
-    const raw = localStorage.getItem("wilbur_onboarding_profile");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<OnboardingData>;
+    const canonical = localStorage.getItem(LS_QUESTIONNAIRE_ANSWERS);
+    if (canonical) {
+      const parsed = JSON.parse(canonical) as unknown;
+      if (parsed && typeof parsed === "object" && "ageRange" in parsed && "goals3to5" in parsed) {
+        return parsed as QuestionnaireAnswers;
+      }
+    }
+    const draft = localStorage.getItem(LS_ONBOARDING_PROFILE);
+    if (!draft) return null;
+    const parsed = JSON.parse(draft) as Partial<OnboardingData>;
     return toQuestionnaireAnswers(parsed);
   } catch {
     return null;

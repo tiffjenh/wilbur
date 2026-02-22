@@ -92,8 +92,12 @@ export function scoreLesson(
   } else if (a.ageRange === "28-34" || a.ageRange === "35-44") {
     if (hasTag(lesson, "home-buying")) add(res, 8, "prime home window");
     if (matchesAny(lesson, ["investing-basics", "retirement"])) add(res, 6, "prime growth window");
-  } else {
-    if (hasTag(lesson, "retirement")) add(res, 8, "retirement priority");
+    if (hasTag(lesson, "retirement")) add(res, 4, "retirement planning");
+    if (hasTag(lesson, "insurance")) add(res, 4, "insurance relevance");
+  } else if (a.ageRange === "45+") {
+    if (hasTag(lesson, "retirement")) add(res, 12, "retirement priority");
+    if (hasTag(lesson, "insurance")) add(res, 8, "insurance relevance");
+    if (matchesAny(lesson, ["taxes-federal", "taxes-state"])) add(res, 6, "tax planning");
     if (hasTag(lesson, "level-4")) add(res, 6, "optimization priority");
   }
 
@@ -155,6 +159,12 @@ export function scoreLesson(
   if (benefits.has("equity_comp") && matchesAny(lesson, ["equity-comp", "advanced-investing"])) add(res, 10, "has equity comp");
 
   // Investing experience
+  const skipInvesting101 =
+    (a.investedBefore === "regularly" || (a.investedBefore === "a-little" && a.confidence >= 3)) &&
+    lesson.id === "investing-101";
+  if (skipInvesting101) {
+    add(res, -25, "you've invested before: skipping beginner investing");
+  }
   if (a.investedBefore === "never") {
     if (hasTag(lesson, "investing-basics")) add(res, 15, "never invested");
     if (hasTag(lesson, "advanced-investing")) add(res, -10, "never invested: avoid advanced");
@@ -178,7 +188,8 @@ export function scoreLesson(
   }
 
   for (const g of a.goals3to5) {
-    if (g === "home_down_payment" && hasTag(lesson, "home-buying")) add(res, 15, "goal: home down payment");
+    if (g === "home_down_payment" && hasTag(lesson, "home-buying")) add(res, 18, "goal: home down payment");
+    if (g === "home_down_payment" && hasTag(lesson, "credit")) add(res, 10, "goal: credit for mortgage");
     if (g === "buy_car" && hasTag(lesson, "car-buying")) add(res, 10, "goal: car");
     if (g === "start_business" && matchesAny(lesson, ["irregular-income", "taxes-federal"])) add(res, 12, "goal: business");
     if (g === "build_investments" && matchesAny(lesson, ["investing-basics", "advanced-investing"])) add(res, 15, "goal: build investments");

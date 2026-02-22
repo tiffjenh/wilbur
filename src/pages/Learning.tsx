@@ -29,7 +29,10 @@ export const Learning: React.FC = () => {
     getReasons,
     getTopReason,
     handleFeedback,
+    debugInfo,
+    pathError,
   } = useLearningPath({ maxLessons: 8 });
+  const [debugOpen, setDebugOpen] = useState(false);
 
   const { user } = useAuth();
   /* Show signup popup once after completing onboarding without signing in */
@@ -73,6 +76,81 @@ export const Learning: React.FC = () => {
             </div>
           ) : (
             <div style={{ padding: "32px 32px 0" }}>
+              {/* Error banner when path generation fails */}
+              {pathError && (
+                <div style={{
+                  marginBottom: 16,
+                  padding: "12px 16px",
+                  backgroundColor: "rgba(217,83,79,0.1)",
+                  border: "1px solid rgba(217,83,79,0.3)",
+                  borderRadius: 8,
+                  fontSize: "var(--text-sm)",
+                  color: "var(--color-text-secondary)",
+                }}>
+                  <strong>Couldn&apos;t build your path.</strong> {pathError} Check the console for details.
+                </div>
+              )}
+
+              {/* Dev-only: collapsible debug panel */}
+              {debugInfo && (
+                <div style={{ marginBottom: 20 }}>
+                  <button
+                    type="button"
+                    onClick={() => setDebugOpen((o) => !o)}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#7a7a6e",
+                      background: "#f5f3ee",
+                      border: "1px solid #e2dcd2",
+                      borderRadius: 6,
+                      padding: "6px 12px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {debugOpen ? "▼" : "▶"} Debug: answers, tags, top 10 scores
+                  </button>
+                  {debugOpen && (
+                    <div style={{
+                      marginTop: 8,
+                      padding: 12,
+                      backgroundColor: "#faf8f5",
+                      border: "1px solid #e2dcd2",
+                      borderRadius: 8,
+                      fontSize: 11,
+                      fontFamily: "monospace",
+                      overflow: "auto",
+                      maxHeight: 360,
+                    }}>
+                      <div style={{ marginBottom: 8 }}>
+                        <strong>Raw answers:</strong>
+                        <pre style={{ margin: "4px 0 0", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                          {JSON.stringify(debugInfo.rawAnswers, null, 2)}
+                        </pre>
+                      </div>
+                      <div style={{ marginBottom: 8 }}>
+                        <strong>Persona tags:</strong> {debugInfo.personaTags.join(", ") || "(none)"}
+                      </div>
+                      <div>
+                        <strong>Top 10 lesson scores:</strong>
+                        <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                          {debugInfo.top10Scores.map((l) => (
+                            <li key={l.id} style={{ marginBottom: 4 }}>
+                              {l.id} (score: {l.score}) — {l.title}
+                              {l.reasons.length > 0 && (
+                                <div style={{ marginLeft: 8, color: "#6b6b5c" }}>
+                                  {l.reasons.slice(0, 3).join("; ")}
+                                </div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Personalized path heading */}
               <div style={{ marginBottom: 28 }}>
                 <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-2xl)", fontWeight: 400, color: "var(--color-text)", margin: "0 0 6px" }}>

@@ -72,6 +72,28 @@ export function generateLearningPath(
   });
 }
 
+/** Return all candidates sorted by score (for dev debug panel). */
+export function getScoredCandidates(
+  allLessons: Lesson[],
+  answers: QuestionnaireAnswers,
+  opts: GenerateOpts = {},
+): { id: string; title: string; score: number; reasons: string[] }[] {
+  const completed = new Set(opts.completedLessonIds ?? []);
+  const feedbackMap = opts.feedbackMap ?? {};
+  const candidates = allLessons.filter(l => !completed.has(l.id));
+  const scored = candidates.map(l => {
+    const res = scoreLesson(l, answers, feedbackMap, allLessons);
+    return { lesson: l, score: res.score, reasons: res.reasons };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map(s => ({
+    id: s.lesson.id,
+    title: s.lesson.title,
+    score: s.score,
+    reasons: s.reasons,
+  }));
+}
+
 /* ── localStorage-backed feedback & progress ─────────────── */
 
 const LS_FEEDBACK_KEY  = "wilbur_lesson_feedback_v2";
