@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+/* ── Step 9 — State of residence ── */
+export const US_STATE_CODES = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
+  "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
+  "VA","WA","WV","WI","WY","DC",
+] as const;
+export const StateCode = z.enum([...US_STATE_CODES, "prefer_not"] as const);
+
 /* ── Step 1 ── */
 export const AgeRange = z.enum(["under_18", "18_22", "23_27", "28_34", "35_44", "45_plus"]);
 export const WorkStatus = z.enum(["in_school", "working", "both", "neither"]);
@@ -65,26 +74,50 @@ export const onboardingSchema = z.object({
   // Step 6 — optional
   moneyStressors: z.array(MoneyStressor).min(1).optional(),
   confidence: ConfidenceLevel.optional(),
+
+  // Step 9 — state of residence (optional)
+  stateCode: StateCode.optional(),
 });
 
 export type OnboardingData = z.infer<typeof onboardingSchema>;
 
-/* Per-step required field keys (used to gate "Next" button) */
+/**
+ * Per-step required field keys.
+ * "Next" is disabled until every field in the step's array is non-empty.
+ *
+ * Step 3 (savings / debt) uses slider defaults that are set automatically when the
+ * user enters the step, so no fields need to be explicitly required here.
+ * Steps 4–8 gate on their primary selection to ensure the user engages.
+ */
 export const STEP_REQUIRED_FIELDS: (keyof OnboardingData)[][] = [
-  ["age", "workStatus"],
-  ["incomeType", "incomeRange"],
-  [],
-  [],
-  [],
-  [],
-  [],
-  [],
+  ["age", "workStatus"],         // Step 1 — platform cards
+  ["incomeType", "incomeRange"], // Step 2 — platform cards + slider
+  [],                            // Step 3 — optional sliders (defaults injected on entry)
+  ["benefits"],                  // Step 4 — multi-select (at least 1, "none" counts)
+  ["goalsThisYear"],             // Step 5 — multi-select (at least 1)
+  ["goals3to5"],                 // Step 6 — multi-select (at least 1)
+  ["moneyStressors"],            // Step 7 — multi-select (at least 1)
+  ["investingExp", "confidence"],// Step 8 — platform card + confidence slider
+  [],                            // Step 9 — state (optional, can skip)
 ];
 
-export const TOTAL_STEPS = 8;
+export const TOTAL_STEPS = 9;
 
 /* LocalStorage key */
 export const LS_KEY = "wilbur_onboarding_profile";
+
+/** SessionStorage key: set when redirecting from onboarding complete; show create-account popup once when landing on learning/lesson if not signed up */
+export const POST_ONBOARDING_PROMPT_SIGNUP = "wilbur_post_onboarding_prompt_signup";
+
+/**
+ * Default values injected silently when entering a step that has sliders.
+ * Ensures the user can proceed without explicitly touching the slider,
+ * while still recording a meaningful answer.
+ */
+export const STEP_SLIDER_DEFAULTS: Record<number, Partial<OnboardingData>> = {
+  3: { savingsRange: "zero", debtRange: "zero" }, // Step 3 — savings & debt
+  8: { confidence: 3 },                           // Step 8 — confidence (midpoint)
+};
 
 /* Human-readable labels for each enum (used for display in cards) */
 export const AGE_LABELS: Record<z.infer<typeof AgeRange>, string> = {

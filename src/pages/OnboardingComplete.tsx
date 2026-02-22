@@ -2,6 +2,8 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MascotPink } from "@/components/ui/MascotPink";
 import { MascotGreen } from "@/components/ui/MascotGreen";
+import { getPersonalizedRoadmap } from "@/lib/stubData";
+import { POST_ONBOARDING_PROMPT_SIGNUP } from "@/lib/onboardingSchema";
 
 /** Pigs + stacked books graphic (teal top, pink bottom) */
 const BooksStack: React.FC<{ className?: string }> = ({ className }) => (
@@ -39,13 +41,28 @@ const BooksStack: React.FC<{ className?: string }> = ({ className }) => (
 /**
  * Post-questionnaire completion screen: pink and green pigs with books, walking animation,
  * "Great! Thanks for answering. Building out your custom lessons now", and loading dots.
- * Redirects to /learning after a short delay.
+ * Redirects to the first lesson they need to take (not the progress tracker).
+ * Sets a flag so we can show the create-account popup once if they haven't signed up.
  */
 export const OnboardingComplete: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const t = setTimeout(() => navigate("/learning", { replace: true }), 4000);
+    const t = setTimeout(() => {
+      try {
+        sessionStorage.setItem(POST_ONBOARDING_PROMPT_SIGNUP, "1");
+      } catch {
+        /* ignore */
+      }
+      /* Profile was stored by Onboarding.tsx. Use personalized roadmap to find first lesson. */
+      const roadmap = getPersonalizedRoadmap();
+      const firstLesson = roadmap.find((l) => l.status === "available") ?? roadmap[0];
+      if (firstLesson) {
+        navigate(`/lesson/${firstLesson.slug}`, { replace: true });
+      } else {
+        navigate("/learning", { replace: true });
+      }
+    }, 4000);
     return () => clearTimeout(t);
   }, [navigate]);
 

@@ -1,26 +1,48 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { lessonContents, roadmapLessons, categories } from "@/lib/stubData";
+import { lessonContents, roadmapLessons, categories, isAuthed } from "@/lib/stubData";
+import { getBlockLesson } from "@/content/lessons";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TutorPanel } from "@/components/layout/TutorPanel";
 import { Icon } from "@/components/ui/Icon";
+import { AccountPopup } from "@/components/ui/Modal";
+import { POST_ONBOARDING_PROMPT_SIGNUP } from "@/lib/onboardingSchema";
+import { BlockRenderer } from "@/components/lessonBlocks/BlockRenderer";
+import { HighlightAI } from "@/components/highlightAI/HighlightAI";
+import { markLessonCompleted, recordFeedback } from "@/lib/recommendation/generatePath";
 
 export const Lesson: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [selectedText, setSelectedText] = useState<string | undefined>();
+  const [showAccountPopup, setShowAccountPopup] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const lesson = slug ? lessonContents[slug] : null;
+  useEffect(() => {
+    try {
+      if (!isAuthed && sessionStorage.getItem(POST_ONBOARDING_PROMPT_SIGNUP) === "1") {
+        sessionStorage.removeItem(POST_ONBOARDING_PROMPT_SIGNUP);
+        setShowAccountPopup(true);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Try block-based lesson first, fall back to legacy
+  const blockLesson = slug ? getBlockLesson(slug) : null;
+  const legacyLesson = slug ? lessonContents[slug] : null;
 
   const allLessons = categories.flatMap((c) => c.lessons);
-  const sidebarLessons = lesson
-    ? allLessons.filter((l) => l.category === lesson.category).length > 2
-      ? allLessons.filter((l) => l.category === lesson.category)
+  const sidebarLessons = legacyLesson
+    ? allLessons.filter((l) => l.category === legacyLesson.category).length > 2
+      ? allLessons.filter((l) => l.category === legacyLesson.category)
       : roadmapLessons
     : roadmapLessons;
 
-  const handleTextSelect = useCallback(() => {
+  const handleTextSelect = useCallback((text: string) => {
+    setSelectedText(text);
+  }, []);
+
+  const handleLegacyTextSelect = useCallback(() => {
     const selection = window.getSelection();
     const text = selection?.toString().trim();
     if (text && text.length > 1 && text.length < 60) {
@@ -28,7 +50,19 @@ export const Lesson: React.FC = () => {
     }
   }, []);
 
-  if (!lesson) {
+  const handleMarkComplete = useCallback(() => {
+    if (slug) markLessonCompleted(slug);
+    navigate("/learning");
+  }, [slug, navigate]);
+
+  const handleFeedback = useCallback((type: "thumbs-up" | "thumbs-down" | "already-know") => {
+    if (slug) {
+      recordFeedback({ lessonId: slug, type, timestamp: new Date().toISOString() });
+    }
+  }, [slug]);
+
+  /* ── Lesson not found ── */
+  if (!blockLesson && !legacyLesson) {
     return (
       <div style={{ padding: "var(--space-8) var(--space-6)", textAlign: "center" }}>
         <h2 style={{ fontFamily: "var(--font-serif)", marginBottom: "var(--space-4)" }}>Lesson not found</h2>
@@ -37,125 +71,230 @@ export const Lesson: React.FC = () => {
     );
   }
 
-  return (
-    <div className="page-enter" style={{ display: "flex", height: "calc(100vh - var(--nav-height))" }}>
-      {/* Left Sidebar */}
-      <Sidebar
-        title="Your Path"
-        subtitle={`${roadmapLessons.filter(l => l.status === "completed").length} lessons personalized for you`}
-        lessons={sidebarLessons}
-      />
+  const lessonTitle = blockLesson?.title ?? legacyLesson?.title ?? "";
+  const lessonCategory = blockLesson?.tags[0] ?? legacyLesson?.category ?? "";
+  const lessonDuration = blockLesson ? `${blockLesson.estimatedTime} min` : legacyLesson?.duration ?? "";
 
-      {/* Main content */}
-      <div
-        ref={contentRef}
-        onMouseUp={handleTextSelect}
-        style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: "var(--space-8)" }}
-      >
-        {/* Top action row — three feedback actions (UI only) */}
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-6)", flexWrap: "wrap" }}>
-          {[
-            { icon: "thumbs-up" as const, label: "learn more like this" },
-            { icon: "thumbs-down" as const, label: "not relevant" },
-            { icon: "brain" as const, label: "i already know this" },
-          ].map(({ icon, label }) => (
-            <button
-              key={label}
-              type="button"
-              style={{
-                display: "inline-flex", alignItems: "center", gap: "7px",
-                padding: "9px 16px", borderRadius: "var(--radius-full)",
-                border: "1px solid var(--color-border)", backgroundColor: "var(--color-surface)",
-                fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--color-text)",
-                cursor: "pointer", fontFamily: "var(--font-sans)", boxShadow: "var(--shadow-sm)",
-                transition: "box-shadow var(--duration-fast), background-color var(--duration-fast)",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface)"; }}
-              onFocus={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
-              onBlur={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface)"; }}
-            >
-              <Icon name={icon} size={14} strokeWidth={1.8} />
-              {label}
-            </button>
-          ))}
+  return (
+    <>
+      <div className="page-enter" style={{ display: "flex", height: "calc(100vh - var(--nav-height))" }}>
+        {/* Left Sidebar */}
+        <Sidebar
+          title="Your Path"
+          subtitle={`${roadmapLessons.filter(l => l.status === "completed").length} lessons personalized for you`}
+          lessons={sidebarLessons}
+        />
+
+        {/* Main content */}
+        <div
+          ref={contentRef}
+          onMouseUp={blockLesson ? undefined : handleLegacyTextSelect}
+          style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: "var(--space-8)" }}
+        >
+          {/* Feedback action row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-6)", flexWrap: "wrap" }}>
+            {[
+              { icon: "thumbs-up" as const, label: "more like this", type: "thumbs-up" as const },
+              { icon: "thumbs-down" as const, label: "not relevant", type: "thumbs-down" as const },
+              { icon: "brain" as const, label: "already know this", type: "already-know" as const },
+            ].map(({ icon, label, type }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => handleFeedback(type)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "7px",
+                  padding: "9px 16px", borderRadius: "var(--radius-full)",
+                  border: "1px solid var(--color-border)", backgroundColor: "var(--color-surface)",
+                  fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--color-text)",
+                  cursor: "pointer", fontFamily: "var(--font-sans)", boxShadow: "var(--shadow-sm)",
+                  transition: "box-shadow var(--duration-fast), background-color var(--duration-fast)",
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface)"; }}
+              >
+                <Icon name={icon} size={14} strokeWidth={1.8} />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Block-based lesson ── */}
+          {blockLesson && (
+            <article style={{ maxWidth: "var(--content-max)" }}>
+              {/* Metadata row */}
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", marginBottom: "var(--space-6)", paddingBottom: "var(--space-5)", borderBottom: "1px solid var(--color-border-light)" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
+                  <Icon name="clock" size={14} strokeWidth={1.8} />
+                  {lessonDuration}
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
+                  <Icon name="graduation-cap" size={14} strokeWidth={1.8} />
+                  {blockLesson.module.replace("module-", "Module ").toUpperCase()}
+                </span>
+                <span style={{
+                  display: "inline-flex", alignItems: "center",
+                  padding: "2px 8px", borderRadius: 4,
+                  backgroundColor: blockLesson.level === "beginner" ? "rgba(14,92,76,0.1)" : blockLesson.level === "intermediate" ? "rgba(255,214,176,0.4)" : "rgba(217,83,79,0.08)",
+                  fontSize: "var(--text-xs)", fontWeight: 600,
+                  color: blockLesson.level === "beginner" ? "#0E5C4C" : blockLesson.level === "intermediate" ? "#b07020" : "#c0392b",
+                  textTransform: "capitalize",
+                }}>
+                  {blockLesson.level}
+                </span>
+              </div>
+
+              {/* Block renderer */}
+              <BlockRenderer
+                blocks={blockLesson.blocks}
+                onTextSelect={handleTextSelect}
+              />
+
+              {/* Sources */}
+              {blockLesson.sources.length > 0 && (
+                <div style={{
+                  marginTop: "var(--space-8)",
+                  padding: "var(--space-4) var(--space-5)",
+                  backgroundColor: "#f8f6f0",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--color-border-light)",
+                }}>
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: "#7a7a6e", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Sources
+                  </div>
+                  {blockLesson.sources.map((source, i) => (
+                    <div key={i} style={{ marginBottom: 4 }}>
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: "var(--text-sm)", color: "var(--color-primary)", textDecoration: "none" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
+                      >
+                        {source.name}
+                      </a>
+                      <span style={{ fontSize: "var(--text-xs)", color: "#b0ab9e", marginLeft: 6 }}>
+                        ({source.type})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Disclaimer */}
+              <div style={{
+                marginTop: "var(--space-6)", padding: "var(--space-4) var(--space-5)",
+                backgroundColor: "var(--color-accent-light)",
+                borderRadius: "var(--radius-md)", border: "1px solid var(--color-accent-border)",
+                fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6,
+              }}>
+                <strong>Educational Content Only:</strong> All examples are hypothetical and for learning purposes only. This is not financial advice. Consult a licensed financial professional for advice specific to your situation.
+              </div>
+
+              {/* Navigation */}
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "var(--space-8)", paddingBottom: "var(--space-8)" }}>
+                <button
+                  onClick={handleMarkComplete}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "8px",
+                    padding: "12px 28px", backgroundColor: "var(--color-primary)", color: "#fff",
+                    border: "none", borderRadius: "var(--radius-full)",
+                    cursor: "pointer", fontSize: "var(--text-base)", fontWeight: 600, fontFamily: "var(--font-sans)",
+                  }}
+                >
+                  Mark as Complete
+                  <Icon name="arrow-right" size={16} color="#fff" strokeWidth={2} />
+                </button>
+              </div>
+            </article>
+          )}
+
+          {/* ── Legacy text-based lesson (fallback) ── */}
+          {!blockLesson && legacyLesson && (
+            <article style={{ maxWidth: "var(--content-max)" }}>
+              <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-3xl)", fontWeight: 400, marginBottom: "var(--space-3)", lineHeight: 1.2, color: "var(--color-text)" }}>
+                {lessonTitle}
+              </h1>
+              <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-xl)", fontWeight: 600, marginBottom: "var(--space-5)", color: "var(--color-text)", lineHeight: 1.3 }}>
+                {legacyLesson.subtitle}
+              </h2>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", marginBottom: "var(--space-6)", paddingBottom: "var(--space-5)", borderBottom: "1px solid var(--color-border-light)" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
+                  <Icon name="clock" size={14} strokeWidth={1.8} />
+                  {lessonDuration}
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
+                  <Icon name="graduation-cap" size={14} strokeWidth={1.8} />
+                  {lessonCategory}
+                </span>
+              </div>
+
+              {legacyLesson.sections.map((section, i) => (
+                <div key={i} style={{ marginBottom: "var(--space-6)" }}>
+                  {section.heading && (
+                    <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-lg)", fontWeight: 600, marginBottom: "var(--space-3)", color: "var(--color-text)" }}>
+                      {section.heading}
+                    </h3>
+                  )}
+                  {section.body && (
+                    <p style={{ fontSize: "var(--text-base)", lineHeight: 1.8, color: "var(--color-text-secondary)", marginBottom: section.bullets ? "var(--space-3)" : 0 }}>
+                      {section.body}
+                    </p>
+                  )}
+                  {section.bullets && (
+                    <ul style={{ paddingLeft: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                      {section.bullets.map((bullet, j) => (
+                        <li key={j} style={{ fontSize: "var(--text-base)", lineHeight: 1.7, color: "var(--color-text-secondary)" }}>
+                          {bullet}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+
+              <div style={{
+                marginTop: "var(--space-8)", padding: "var(--space-4) var(--space-5)",
+                backgroundColor: "var(--color-accent-light)",
+                borderRadius: "var(--radius-md)", border: "1px solid var(--color-accent-border)",
+                fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6,
+              }}>
+                <strong>Educational Example Only:</strong> All numbers and scenarios are hypothetical and for learning purposes only. This is not financial advice.
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "var(--space-8)", paddingBottom: "var(--space-8)" }}>
+                <button
+                  onClick={handleMarkComplete}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "8px",
+                    padding: "12px 28px", backgroundColor: "var(--color-primary)", color: "#fff",
+                    border: "none", borderRadius: "var(--radius-full)",
+                    cursor: "pointer", fontSize: "var(--text-base)", fontWeight: 600, fontFamily: "var(--font-sans)",
+                  }}
+                >
+                  Mark as Complete
+                  <Icon name="arrow-right" size={16} color="#fff" strokeWidth={2} />
+                </button>
+              </div>
+            </article>
+          )}
         </div>
 
-        {/* Lesson content */}
-        <article style={{ maxWidth: "var(--content-max)" }}>
-          <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-3xl)", fontWeight: 400, marginBottom: "var(--space-3)", lineHeight: 1.2, color: "var(--color-text)" }}>
-            {lesson.title}
-          </h1>
-          <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-xl)", fontWeight: 600, marginBottom: "var(--space-5)", color: "var(--color-text)", lineHeight: 1.3 }}>
-            {lesson.subtitle}
-          </h2>
-
-          {/* Metadata row */}
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", marginBottom: "var(--space-6)", paddingBottom: "var(--space-5)", borderBottom: "1px solid var(--color-border-light)" }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
-              <Icon name="clock" size={14} strokeWidth={1.8} />
-              {lesson.duration}
-            </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
-              <Icon name="graduation-cap" size={14} strokeWidth={1.8} />
-              {lesson.category}
-            </span>
-          </div>
-
-          {lesson.sections.map((section, i) => (
-            <div key={i} style={{ marginBottom: "var(--space-6)" }}>
-              {section.heading && (
-                <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-lg)", fontWeight: 600, marginBottom: "var(--space-3)", color: "var(--color-text)" }}>
-                  {section.heading}
-                </h3>
-              )}
-              {section.body && (
-                <p style={{ fontSize: "var(--text-base)", lineHeight: 1.8, color: "var(--color-text-secondary)", marginBottom: section.bullets ? "var(--space-3)" : 0 }}>
-                  {section.body}
-                </p>
-              )}
-              {section.bullets && (
-                <ul style={{ paddingLeft: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                  {section.bullets.map((bullet, j) => (
-                    <li key={j} style={{ fontSize: "var(--text-base)", lineHeight: 1.7, color: "var(--color-text-secondary)" }}>
-                      {bullet}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
-
-          {/* Disclaimer */}
-          <div style={{
-            marginTop: "var(--space-8)", padding: "var(--space-4) var(--space-5)",
-            backgroundColor: "var(--color-accent-light)",
-            borderRadius: "var(--radius-md)", border: "1px solid var(--color-accent-border)",
-            fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6,
-          }}>
-            <strong>Educational Example Only:</strong> All numbers and scenarios are hypothetical and for learning purposes only. This is not financial advice.
-          </div>
-
-          {/* Next lesson navigation */}
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "var(--space-8)", paddingBottom: "var(--space-8)" }}>
-            <button
-              onClick={() => navigate("/library")}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: "8px",
-                padding: "12px 28px", backgroundColor: "var(--color-primary)", color: "#fff",
-                border: "none", borderRadius: "var(--radius-full)",
-                cursor: "pointer", fontSize: "var(--text-base)", fontWeight: 600, fontFamily: "var(--font-sans)",
-              }}
-            >
-              Mark as Complete
-              <Icon name="arrow-right" size={16} color="#fff" strokeWidth={2} />
-            </button>
-          </div>
-        </article>
+        {/* Right TutorPanel */}
+        <TutorPanel selectedText={selectedText} visible />
       </div>
 
-      {/* Right TutorPanel */}
-      <TutorPanel selectedText={selectedText} visible />
-    </div>
+      {/* HighlightAI — floating tooltip + explain modal */}
+      <HighlightAI containerRef={contentRef} />
+
+      <AccountPopup
+        open={showAccountPopup}
+        onClose={() => setShowAccountPopup(false)}
+        onSignUp={() => { setShowAccountPopup(false); navigate("/dashboard/progress"); }}
+        onLogin={() => { setShowAccountPopup(false); navigate("/dashboard/progress"); }}
+      />
+    </>
   );
 };

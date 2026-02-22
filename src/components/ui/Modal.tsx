@@ -103,6 +103,15 @@ export const AccountPopup: React.FC<AccountPopupProps> = ({ open, onClose, onSig
       </Button>
 
       <button
+        onClick={onClose}
+        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "var(--text-sm)", color: "var(--color-text-muted)", fontFamily: "var(--font-sans)", padding: "8px", marginBottom: "8px", display: "block", width: "100%", transition: "color var(--duration-fast)" }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-text-muted)"; }}
+      >
+        Maybe later
+      </button>
+
+      <button
         onClick={onLogin}
         style={{ background: "none", border: "none", cursor: "pointer", fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", fontFamily: "var(--font-sans)", padding: "8px", transition: "color var(--duration-fast)" }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}

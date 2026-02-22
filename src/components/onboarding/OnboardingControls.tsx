@@ -420,10 +420,11 @@ export function DiscreteSlider<T extends string>({
   showSelectedAbove = true,
 }: DiscreteSliderProps<T>) {
   const n = options.length;
-  const idx = value !== undefined && value !== null
-    ? options.findIndex((o) => o.value === value)
-    : 0;
-  const safeIdx = idx >= 0 ? idx : 0;
+  const idx = (value === undefined || value === null)
+    ? -1
+    : options.findIndex((o) => o.value === value);
+  const safeIdx = idx >= 0 ? idx : -1;
+  const hasSelection = safeIdx >= 0;
   const trackRef = React.useRef<HTMLDivElement>(null);
 
   const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -437,12 +438,11 @@ export function DiscreteSlider<T extends string>({
     if (opt) onChange(opt.value);
   };
 
-  // Thumb at center of selected column: (safeIdx + 0.5) / n * 100
-  const thumbCenterPct = n > 0 ? ((safeIdx + 0.5) / n) * 100 : 0;
+  const thumbCenterPct = n > 0 && hasSelection ? ((safeIdx + 0.5) / n) * 100 : 0;
 
   return (
     <div style={{ width: "100%", maxWidth: SLIDER_MAX_WIDTH, margin: "0 auto" }}>
-      {showSelectedAbove && options[safeIdx] && (
+      {showSelectedAbove && hasSelection && options[safeIdx] && (
         <div
           style={{
             marginBottom: "12px",
@@ -467,11 +467,11 @@ export function DiscreteSlider<T extends string>({
           </span>
         </div>
       )}
-      {/* Track + thumb — click maps to column */}
+      {/* Track + thumb — click maps to column; no thumb until user selects */}
       <div
         ref={trackRef}
         role="slider"
-        aria-valuenow={safeIdx}
+        aria-valuenow={hasSelection ? safeIdx : -1}
         aria-valuemin={0}
         aria-valuemax={n - 1}
         aria-label="Select value"
@@ -481,9 +481,10 @@ export function DiscreteSlider<T extends string>({
           if (e.key === "ArrowLeft" && safeIdx > 0) {
             e.preventDefault();
             onChange(options[safeIdx - 1].value);
-          } else if (e.key === "ArrowRight" && safeIdx < n - 1) {
+          } else if (e.key === "ArrowRight") {
             e.preventDefault();
-            onChange(options[safeIdx + 1].value);
+            if (safeIdx < 0) onChange(options[0].value);
+            else if (safeIdx < n - 1) onChange(options[safeIdx + 1].value);
           }
         }}
         style={{
@@ -496,19 +497,21 @@ export function DiscreteSlider<T extends string>({
           marginBottom: "8px",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            left: `${thumbCenterPct}%`,
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-            width: "20px",
-            height: "20px",
-            borderRadius: "50%",
-            backgroundColor: "var(--color-primary)",
-            pointerEvents: "none",
-          }}
-        />
+        {hasSelection && (
+          <div
+            style={{
+              position: "absolute",
+              left: `${thumbCenterPct}%`,
+              top: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "20px",
+              height: "20px",
+              borderRadius: "50%",
+              backgroundColor: "var(--color-primary)",
+              pointerEvents: "none",
+            }}
+          />
+        )}
       </div>
       {/* One column per option: tick centered above label centered (dot right above choice description) */}
       <div style={{ display: "flex", width: "100%" }}>
@@ -528,7 +531,7 @@ export function DiscreteSlider<T extends string>({
                 width: "8px",
                 height: "8px",
                 borderRadius: "50%",
-                backgroundColor: i === safeIdx ? "var(--color-primary)" : "var(--color-border-light)",
+                backgroundColor: hasSelection && i === safeIdx ? "var(--color-primary)" : "var(--color-border-light)",
                 marginBottom: "4px",
               }}
             />
@@ -536,8 +539,8 @@ export function DiscreteSlider<T extends string>({
               style={{
                 fontFamily: "var(--font-sans)",
                 fontSize: "var(--text-xs)",
-                color: i === safeIdx ? "var(--color-primary)" : "var(--color-text)",
-                fontWeight: i === safeIdx ? 600 : 500,
+                color: hasSelection && i === safeIdx ? "var(--color-primary)" : "var(--color-text)",
+                fontWeight: hasSelection && i === safeIdx ? 600 : 500,
                 textAlign: "center",
               }}
             >
@@ -557,11 +560,10 @@ interface SliderSelectProps<T extends string> {
   onChange: (v: T) => void;
 }
 export function SliderSelect<T extends string>({ options, value, onChange }: SliderSelectProps<T>) {
-  const effectiveValue = value ?? options[0]?.value;
   return (
     <DiscreteSlider
       options={options}
-      value={effectiveValue}
+      value={value}
       onChange={onChange}
       showSelectedAbove={true}
     />

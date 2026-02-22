@@ -1,12 +1,18 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   onboardingSchema,
   STEP_REQUIRED_FIELDS,
+  STEP_SLIDER_DEFAULTS,
   TOTAL_STEPS,
   LS_KEY,
   type OnboardingData,
 } from "@/lib/onboardingSchema";
+import {
+  computeLearningProfile,
+  saveProfile,
+  clearProfile,
+} from "@/lib/personalizationEngine";
 import { OnboardingLayout } from "@/components/onboarding/OnboardingLayout";
 import { StepOne } from "@/components/onboarding/StepOne";
 import { StepTwo } from "@/components/onboarding/StepTwo";
@@ -15,26 +21,14 @@ import { StepFour } from "@/components/onboarding/StepFour";
 import { StepEightTwelve } from "@/components/onboarding/StepEightTwelve";
 import { StepFiveQ9, StepFiveQ10 } from "@/components/onboarding/StepFive";
 import { StepSix } from "@/components/onboarding/StepSix";
+import { StepNine } from "@/components/onboarding/StepNine";
 
-/* ── step meta (8 steps) ── */
-const STEP_META: { title: string; subtitle?: string }[] = [
-  { title: "", subtitle: "" },
-  { title: "", subtitle: "" },
-  { title: "", subtitle: "" },
-  { title: "", subtitle: "" },
-  { title: "", subtitle: "" },
-  { title: "", subtitle: "" },
-  { title: "", subtitle: "" },
-  { title: "", subtitle: "" },
-];
-
-/* ── restore from localStorage ── */
+/* ── Restore from localStorage ── */
 function loadFromStorage(): Partial<OnboardingData> {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    // Partially validate — ignore invalid fields
     const result = onboardingSchema.partial().safeParse(parsed);
     return result.success ? result.data : {};
   } catch {
@@ -42,12 +36,12 @@ function loadFromStorage(): Partial<OnboardingData> {
   }
 }
 
-/* ── save draft (partial) to localStorage ── */
+/* ── Persist draft to localStorage ── */
 function saveDraft(data: Partial<OnboardingData>) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch { /* ignore */ }
 }
 
-/* ── check if a step's required fields are filled ── */
+/* ── Check if step's required fields are all filled ── */
 function stepIsComplete(step: number, data: Partial<OnboardingData>): boolean {
   const required = STEP_REQUIRED_FIELDS[step - 1] ?? [];
   return required.every((key) => {
@@ -61,39 +55,61 @@ function stepIsComplete(step: number, data: Partial<OnboardingData>): boolean {
 export const Onboarding: React.FC = () => {
   const navigate = useNavigate();
 
-  const [step, setStep]     = useState<number>(1);
-  const [form, setForm]     = useState<Partial<OnboardingData>>({});
-  const [ready, setReady]   = useState(false);
+  const [step, setStep]   = useState<number>(1);
+  const [form, setForm]   = useState<Partial<OnboardingData>>({});
+  const [ready, setReady] = useState(false);
 
-  /* Restore saved progress on mount; use leftmost-option defaults for required fields when empty */
-  const DEFAULT_REQUIRED: Partial<OnboardingData> = {
-    age: "under_18",
-    workStatus: "in_school",
-    incomeType: "w2",
-    incomeRange: "under_15k",
-  };
-
+  /* ── Restore saved draft on mount ── */
   useEffect(() => {
     const saved = loadFromStorage();
-    setForm({ ...DEFAULT_REQUIRED, ...saved });
+    setForm(saved);
     setReady(true);
   }, []);
 
-  /* Auto-save on every change */
+  /* ── Inject slider defaults when entering a step that has them ──
+     Sliders default to a sensible value so the user doesn't need to
+     touch them to proceed, while still recording a meaningful answer. */
+  useEffect(() => {
+    if (!ready) return;
+    const defaults = STEP_SLIDER_DEFAULTS[step];
+    if (!defaults) return;
+    setForm((prev) => {
+      const updates: Partial<OnboardingData> = {};
+      for (const [key, val] of Object.entries(defaults) as [keyof OnboardingData, unknown][]) {
+        if (prev[key] === undefined) {
+          (updates as Record<string, unknown>)[key] = val;
+        }
+      }
+      return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
+    });
+  }, [step, ready]);
+
+  /* ── Auto-save on every form change ── */
   useEffect(() => {
     if (ready) saveDraft(form);
   }, [form, ready]);
 
+  /* ── Update form; memoized ── */
   const patch = useCallback((update: Partial<OnboardingData>) => {
     setForm((prev) => ({ ...prev, ...update }));
   }, []);
 
+  /* ── "Next" is enabled only when required fields are filled ── */
+  const canNext = useMemo(
+    () => stepIsComplete(step, form),
+    [step, form],
+  );
+
+  /* ── Navigate forward / backward ── */
   const goNext = useCallback(() => {
     if (step < TOTAL_STEPS) {
       setStep((s) => s + 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       saveDraft(form);
+      /* ── Run personalization engine and persist profile ── */
+      const profile = computeLearningProfile(form);
+      saveProfile(profile);
       navigate("/onboarding/complete");
     }
   }, [step, form, navigate]);
@@ -105,16 +121,21 @@ export const Onboarding: React.FC = () => {
     }
   }, [step]);
 
-  const canNext = stepIsComplete(step, form);
-  const meta    = STEP_META[step - 1];
+  /* ── Restart: clear all state and regenerate ── */
+  const restart = useCallback(() => {
+    try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
+    clearProfile();
+    setForm({});
+    setStep(1);
+  }, []);
+  void restart; // exposed on window for dev/testing if needed
 
-  if (!ready) return null; // Wait for localStorage restore before rendering
+  if (!ready) return null;
 
   return (
     <OnboardingLayout
       step={step}
-      title={meta.title}
-      subtitle={meta.subtitle}
+      title=""
       canNext={canNext}
       onBack={goBack}
       onNext={goNext}
@@ -128,6 +149,7 @@ export const Onboarding: React.FC = () => {
       {step === 6 && <StepFiveQ10 data={form} onChange={patch} />}
       {step === 7 && <StepSix data={form} onChange={patch} />}
       {step === 8 && <StepEightTwelve data={form} onChange={patch} />}
+      {step === 9 && <StepNine data={form} onChange={patch} />}
     </OnboardingLayout>
   );
 };

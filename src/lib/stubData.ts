@@ -1,4 +1,5 @@
 import type { IconName } from "@/components/ui/Icon";
+import { loadProfile } from "./personalizationEngine";
 
 export type LessonStatus = "locked" | "available" | "completed";
 
@@ -32,13 +33,83 @@ export interface Resource {
 
 export const isAuthed = false;
 
+/* ── Static fallback roadmap (used before questionnaire is complete) ── */
 export const roadmapLessons: Lesson[] = [
-  { id: "l1", slug: "banking-basics",  title: "Banking Basics: Checking & Savings", category: "Fundamentals", duration: "8 min",  status: "completed", order: 1 },
-  { id: "l2", slug: "credit-vs-debit", title: "Credit vs. Debit Cards",             category: "Fundamentals", duration: "6 min",  status: "completed", order: 2 },
-  { id: "l3", slug: "budgeting-101",   title: "Budgeting 101",                       category: "Fundamentals", duration: "10 min", status: "completed", order: 3 },
-  { id: "l4", slug: "emergency-fund",  title: "Building an Emergency Fund",          category: "Fundamentals", duration: "8 min",  status: "available", order: 4 },
-  { id: "l5", slug: "roth-ira",        title: "Roth IRA: Tax-Free Retirement",       category: "Investing",    duration: "12 min", status: "locked",    order: 5 },
+  { id: "l1", slug: "banking-basics",  title: "Banking Basics: Checking & Savings", category: "Fundamentals", duration: "8 min",  status: "available", order: 1 },
+  { id: "l2", slug: "budgeting-101",   title: "Budgeting 101",                       category: "Fundamentals", duration: "10 min", status: "locked",    order: 2 },
+  { id: "l3", slug: "emergency-fund",  title: "Building an Emergency Fund",          category: "Fundamentals", duration: "8 min",  status: "locked",    order: 3 },
+  { id: "l4", slug: "credit-score-101",title: "Credit Score 101",                    category: "Credit",       duration: "9 min",  status: "locked",    order: 4 },
+  { id: "l5", slug: "what-is-investing",title: "What is Investing?",                 category: "Investing",    duration: "5 min",  status: "locked",    order: 5 },
 ];
+
+/* ── Master lesson registry: all known lessons keyed by slug ── */
+export const LESSON_REGISTRY: Record<string, Omit<Lesson, "status" | "order">> = {
+  // Module A — Money Basics
+  "money-map":                  { id: "a1", slug: "money-map",                  title: "Money Map: Where Your Money Goes",         category: "Money Basics",        duration: "6 min"  },
+  "checking-vs-savings":        { id: "a2", slug: "checking-vs-savings",        title: "Checking vs. Savings (and What APY Means)", category: "Money Basics",       duration: "7 min"  },
+  "bills-and-due-dates":        { id: "a3", slug: "bills-and-due-dates",        title: "Bills, Due Dates & Avoiding Late Fees",    category: "Money Basics",        duration: "5 min"  },
+  "your-money-system":          { id: "a4", slug: "your-money-system",          title: "Your First Money System",                  category: "Money Basics",        duration: "8 min"  },
+  // Module B — Budgeting
+  "budget-styles":              { id: "b1", slug: "budget-styles",              title: "Budget Styles: 50/30/20 vs. Zero-Based",   category: "Budgeting",           duration: "7 min"  },
+  "starter-budget":             { id: "b2", slug: "starter-budget",             title: "Build a 10-Minute Starter Budget",         category: "Budgeting",           duration: "8 min"  },
+  "irregular-income-budgeting": { id: "b3", slug: "irregular-income-budgeting", title: "Budgeting with Irregular Income",          category: "Budgeting",           duration: "8 min"  },
+  "pay-yourself-first":         { id: "b4", slug: "pay-yourself-first",         title: "Automations: The 'Set and Forget' Setup",  category: "Budgeting",           duration: "6 min"  },
+  "sinking-funds":              { id: "b5", slug: "sinking-funds",              title: "Sinking Funds: Save for Irregular Expenses", category: "Budgeting",         duration: "6 min"  },
+  // Module C — Emergency Fund
+  "emergency-fund-how-much":    { id: "c1", slug: "emergency-fund-how-much",    title: "Emergency Fund: How Much Do You Need?",    category: "Emergency Fund",      duration: "7 min"  },
+  "where-to-keep-savings":      { id: "c2", slug: "where-to-keep-savings",      title: "Where to Keep Your Savings",               category: "Emergency Fund",      duration: "6 min"  },
+  "saving-faster":              { id: "c3", slug: "saving-faster",              title: "Saving Faster Without Hating Life",        category: "Emergency Fund",      duration: "6 min"  },
+  // Module D — Credit & Debt
+  "credit-score-basics":        { id: "d1", slug: "credit-score-basics",        title: "Credit Score: What Actually Matters",      category: "Credit & Debt",       duration: "8 min"  },
+  "credit-card-interest":       { id: "d2", slug: "credit-card-interest",       title: "Credit Cards: How Interest Actually Works", category: "Credit & Debt",      duration: "8 min"  },
+  "debt-payoff-methods":        { id: "d3", slug: "debt-payoff-methods",        title: "Debt Payoff: Avalanche vs. Snowball",       category: "Credit & Debt",       duration: "9 min"  },
+  "debt-vs-investing":          { id: "d4", slug: "debt-vs-investing",          title: "Debt vs. Investing: What to Do First?",    category: "Credit & Debt",       duration: "8 min"  },
+  "student-loans-basics":       { id: "d5", slug: "student-loans-basics",       title: "Student Loans: What You Need to Know",     category: "Credit & Debt",       duration: "9 min"  },
+  // Module E — Investing
+  "investing-101":              { id: "e1", slug: "investing-101",              title: "Investing 101: Stocks, Bonds & Funds",     category: "Investing Basics",    duration: "8 min"  },
+  "risk-and-time-horizon":      { id: "e2", slug: "risk-and-time-horizon",      title: "Risk, Time, and Your Investing Timeline",  category: "Investing Basics",    duration: "7 min"  },
+  "dollar-cost-averaging":      { id: "e3", slug: "dollar-cost-averaging",      title: "Dollar-Cost Averaging",                    category: "Investing Basics",    duration: "6 min"  },
+  "compound-growth":            { id: "e4", slug: "compound-growth",            title: "Compound Growth: The 8th Wonder",          category: "Investing Basics",    duration: "8 min"  },
+  "your-first-investing-plan":  { id: "e5", slug: "your-first-investing-plan",  title: "Your First Investing Plan (Simple)",       category: "Investing Basics",    duration: "9 min"  },
+  // Legacy slugs (kept for backwards compatibility)
+  "banking-basics":             { id: "r-banking",  slug: "banking-basics",       title: "Banking Basics: Checking & Savings",     category: "Fundamentals",        duration: "8 min"  },
+  "budgeting-101":              { id: "r-budget",   slug: "budgeting-101",        title: "Budgeting 101",                          category: "Fundamentals",        duration: "10 min" },
+  "50-30-20-rule":              { id: "r-503020",   slug: "50-30-20-rule",        title: "The 50/30/20 Rule",                      category: "Fundamentals",        duration: "6 min"  },
+  "tracking-spending":          { id: "r-track",    slug: "tracking-spending",    title: "Tracking Your Spending",                 category: "Fundamentals",        duration: "8 min"  },
+  "emergency-fund":             { id: "r-emerg",    slug: "emergency-fund",       title: "Building an Emergency Fund",             category: "Fundamentals",        duration: "8 min"  },
+  "credit-vs-debit":            { id: "r-cvd",      slug: "credit-vs-debit",      title: "Credit vs. Debit Cards",                 category: "Credit Basics",       duration: "6 min"  },
+  "credit-score-101":           { id: "r-credit",   slug: "credit-score-101",     title: "Credit Score 101",                       category: "Credit Basics",       duration: "9 min"  },
+  "paying-off-debt":            { id: "r-debt",     slug: "paying-off-debt",      title: "Paying Off Debt",                        category: "Debt Management",     duration: "11 min" },
+  "what-is-investing":          { id: "r-invest0",  slug: "what-is-investing",    title: "What is Investing?",                     category: "Investment Basics",   duration: "5 min"  },
+  "risk-vs-return":             { id: "r-risk",     slug: "risk-vs-return",       title: "Risk vs. Return",                        category: "Investment Basics",   duration: "7 min"  },
+  "compound-interest":          { id: "r-compound", slug: "compound-interest",    title: "Compound Interest Magic",                category: "Investment Basics",   duration: "8 min"  },
+  "roth-ira":                   { id: "r-roth",     slug: "roth-ira",             title: "Roth IRA: Tax-Free Retirement",          category: "Retirement Accounts", duration: "12 min" },
+  "w2-vs-1099":                 { id: "r-w2",       slug: "w2-vs-1099",           title: "W2 vs 1099: What's the Difference?",     category: "Income Types",        duration: "8 min"  },
+  "renting-vs-buying":          { id: "r-rent",     slug: "renting-vs-buying",    title: "Renting vs. Buying a Home",              category: "Housing Basics",      duration: "12 min" },
+  "health-insurance-101":       { id: "r-health",   slug: "health-insurance-101", title: "Health Insurance 101",                   category: "Insurance Basics",    duration: "9 min"  },
+};
+
+/**
+ * Returns a personalized roadmap based on the stored LearningProfile.
+ * Falls back to `roadmapLessons` if no profile is found.
+ *
+ * Statuses: first lesson is "available", rest are "locked".
+ * Once a lesson is in the profile's recommendedPath it is always unlocked (#1 = available).
+ */
+export function getPersonalizedRoadmap(): Lesson[] {
+  const profile = loadProfile();
+  if (!profile || profile.recommendedPath.length === 0) return roadmapLessons;
+
+  return profile.recommendedPath.map((slug, idx) => {
+    const base = LESSON_REGISTRY[slug];
+    if (!base) return null;
+    return {
+      ...base,
+      status: idx === 0 ? "available" : "locked",
+      order: idx + 1,
+    } as Lesson;
+  }).filter(Boolean) as Lesson[];
+}
 
 export const categories: Category[] = [
   {
