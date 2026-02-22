@@ -1,11 +1,10 @@
 import React, { useState } from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
 import { roadmapLessons, isAuthed } from "@/lib/stubData";
 import { AccountPopup } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { useNavigate } from "react-router-dom";
 
-const DashboardContent: React.FC = () => {
+export const ProgressTrackerContent: React.FC = () => {
   const completedCount = roadmapLessons.filter((l) => l.status === "completed").length;
   const nextLesson = roadmapLessons.find((l) => l.status === "available");
   const navigate = useNavigate();
@@ -15,7 +14,7 @@ const DashboardContent: React.FC = () => {
       {/* Welcome */}
       <div className="page-enter" style={{ marginBottom: "var(--space-8)" }}>
         <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-2xl)", fontWeight: 600, marginBottom: "8px" }}>
-          Your Dashboard
+          Progress Tracker
         </h1>
         <p style={{ color: "var(--color-text-muted)", fontSize: "var(--text-base)" }}>
           Track your learning journey and confidence.
@@ -105,28 +104,25 @@ const DashboardContent: React.FC = () => {
   );
 };
 
+/**
+ * Dashboard = Progress Tracker only. Account-gated; no lesson sidebar.
+ * Route: /dashboard, /dashboard/progress
+ */
 export const Dashboard: React.FC = () => {
   const [showPopup, setShowPopup] = useState(!isAuthed);
   const navigate = useNavigate();
 
   return (
     <>
-      <div style={{ display: "flex", position: "relative" }}>
-        <Sidebar
-          title="Your Path"
-          subtitle={`${roadmapLessons.filter(l => l.status === "completed").length} lessons personalized for you`}
-          lessons={roadmapLessons}
-        />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <DashboardContent />
-        </div>
+      <div style={{ position: "relative" }}>
+        <ProgressTrackerContent />
       </div>
 
       <AccountPopup
         open={showPopup}
         onClose={() => setShowPopup(false)}
-        onSignUp={() => { setShowPopup(false); navigate("/"); }}
-        onLogin={() => { setShowPopup(false); navigate("/"); }}
+        onSignUp={() => { setShowPopup(false); navigate("/dashboard/progress"); }}
+        onLogin={() => { setShowPopup(false); navigate("/dashboard/progress"); }}
       />
     </>
   );

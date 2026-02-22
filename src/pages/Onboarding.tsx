@@ -12,35 +12,20 @@ import { StepOne } from "@/components/onboarding/StepOne";
 import { StepTwo } from "@/components/onboarding/StepTwo";
 import { StepThree } from "@/components/onboarding/StepThree";
 import { StepFour } from "@/components/onboarding/StepFour";
-import { StepFive } from "@/components/onboarding/StepFive";
+import { StepEightTwelve } from "@/components/onboarding/StepEightTwelve";
+import { StepFiveQ9, StepFiveQ10 } from "@/components/onboarding/StepFive";
 import { StepSix } from "@/components/onboarding/StepSix";
 
-/* ── step meta ── */
+/* ── step meta (8 steps) ── */
 const STEP_META: { title: string; subtitle?: string }[] = [
-  {
-    title: "Tell us a little about yourself",
-    subtitle: "We'll use this to build a learning path that fits your life — not someone else's.",
-  },
-  {
-    title: "Your income & work situation",
-    subtitle: "This helps us prioritize the money topics that are most relevant for you right now.",
-  },
-  {
-    title: "Your savings & debt picture",
-    subtitle: "No judgment here. Knowing where you stand helps us focus your first lessons.",
-  },
-  {
-    title: "Benefits & investing experience",
-    subtitle: "We'll make sure you understand and use every benefit available to you.",
-  },
-  {
-    title: "Your goals",
-    subtitle: "Short-term wins and long-term dreams. We'll build your path around both.",
-  },
-  {
-    title: "How do you feel about money?",
-    subtitle: "Honest answers help us pitch lessons at the right level — no fluff, no overwhelm.",
-  },
+  { title: "", subtitle: "" },
+  { title: "", subtitle: "" },
+  { title: "", subtitle: "" },
+  { title: "", subtitle: "" },
+  { title: "", subtitle: "" },
+  { title: "", subtitle: "" },
+  { title: "", subtitle: "" },
+  { title: "", subtitle: "" },
 ];
 
 /* ── restore from localStorage ── */
@@ -80,10 +65,17 @@ export const Onboarding: React.FC = () => {
   const [form, setForm]     = useState<Partial<OnboardingData>>({});
   const [ready, setReady]   = useState(false);
 
-  /* Restore saved progress on mount */
+  /* Restore saved progress on mount; use leftmost-option defaults for required fields when empty */
+  const DEFAULT_REQUIRED: Partial<OnboardingData> = {
+    age: "under_18",
+    workStatus: "in_school",
+    incomeType: "w2",
+    incomeRange: "under_15k",
+  };
+
   useEffect(() => {
     const saved = loadFromStorage();
-    setForm(saved);
+    setForm({ ...DEFAULT_REQUIRED, ...saved });
     setReady(true);
   }, []);
 
@@ -101,9 +93,8 @@ export const Onboarding: React.FC = () => {
       setStep((s) => s + 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
-      // Final submit: validate complete schema (partial — only required fields matter)
       saveDraft(form);
-      navigate("/dashboard");
+      navigate("/onboarding/complete");
     }
   }, [step, form, navigate]);
 
@@ -133,8 +124,10 @@ export const Onboarding: React.FC = () => {
       {step === 2 && <StepTwo data={form} onChange={patch} />}
       {step === 3 && <StepThree data={form} onChange={patch} />}
       {step === 4 && <StepFour data={form} onChange={patch} />}
-      {step === 5 && <StepFive data={form} onChange={patch} />}
-      {step === 6 && <StepSix data={form} onChange={patch} />}
+      {step === 5 && <StepFiveQ9 data={form} onChange={patch} />}
+      {step === 6 && <StepFiveQ10 data={form} onChange={patch} />}
+      {step === 7 && <StepSix data={form} onChange={patch} />}
+      {step === 8 && <StepEightTwelve data={form} onChange={patch} />}
     </OnboardingLayout>
   );
 };

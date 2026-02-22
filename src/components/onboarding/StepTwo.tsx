@@ -4,16 +4,24 @@ import {
   INCOME_TYPE_LABELS, INCOME_RANGE_LABELS,
   IncomeType, IncomeRange,
 } from "@/lib/onboardingSchema";
-import { SingleSelect, SliderSelect, Question } from "./OnboardingControls";
+import { SliderSelect, PlatformCards, Question, Icon1099, IconW2, IconBoth, IconNoIncome } from "./OnboardingControls";
 
 interface StepTwoProps {
   data: Partial<OnboardingData>;
   onChange: (patch: Partial<OnboardingData>) => void;
 }
 
+const INCOME_ICONS: Record<string, React.ReactNode> = {
+  "1099": <Icon1099 />,
+  w2: <IconW2 />,
+  both: <IconBoth />,
+  no_income: <IconNoIncome />,
+};
+
 const INCOME_TYPE_OPTIONS = Object.entries(INCOME_TYPE_LABELS).map(([value, label]) => ({
   value: value as ReturnType<typeof IncomeType.parse>,
   label,
+  icon: INCOME_ICONS[value],
 }));
 
 const INCOME_RANGE_OPTIONS = Object.entries(INCOME_RANGE_LABELS).map(([value, label]) => ({
@@ -27,7 +35,7 @@ export const StepTwo: React.FC<StepTwoProps> = ({ data, onChange }) => (
       number={3}
       label="What's your income type?"
     >
-      <SingleSelect
+      <PlatformCards
         options={INCOME_TYPE_OPTIONS}
         value={data.incomeType}
         onChange={(v) => onChange({ incomeType: v })}

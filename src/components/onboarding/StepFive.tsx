@@ -21,30 +21,32 @@ const LONG_OPTIONS = Object.entries(GOALS_3_5_LABELS).map(([value, label]) => ({
   label,
 }));
 
-export const StepFive: React.FC<StepFiveProps> = ({ data, onChange }) => (
-  <>
-    <Question
-      number={9}
-      label="What are your top goals this year?"
-      helper="Select all that apply."
-    >
-      <MultiSelect
-        options={YEAR_OPTIONS}
-        value={data.goalsThisYear ?? []}
-        onChange={(v) => onChange({ goalsThisYear: v })}
-      />
-    </Question>
+/** Step 5: displayed as Question 8 (goals this year) */
+export const StepFiveQ9: React.FC<StepFiveProps> = ({ data, onChange }) => (
+  <Question
+    number={8}
+    label="What are your top goals this year?"
+    helper="Select all that apply."
+  >
+    <MultiSelect
+      options={YEAR_OPTIONS}
+      value={data.goalsThisYear ?? []}
+      onChange={(v) => onChange({ goalsThisYear: v })}
+    />
+  </Question>
+);
 
-    <Question
-      number={10}
-      label="What are your goals in 3–5 years?"
-      helper="Select all that apply."
-    >
-      <MultiSelect
-        options={LONG_OPTIONS}
-        value={data.goals3to5 ?? []}
-        onChange={(v) => onChange({ goals3to5: v })}
-      />
-    </Question>
-  </>
+/** Step 6: displayed as Question 9 (goals 3–5 years) */
+export const StepFiveQ10: React.FC<StepFiveProps> = ({ data, onChange }) => (
+  <Question
+    number={9}
+    label="What are your financial goals in 3–5 years?"
+    helper="Select all that apply."
+  >
+    <MultiSelect
+      options={LONG_OPTIONS}
+      value={data.goals3to5 ?? []}
+      onChange={(v) => onChange({ goals3to5: v })}
+    />
+  </Question>
 );

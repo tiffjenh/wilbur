@@ -26,7 +26,11 @@ export type IconName =
   | "arrow-right"
   | "x"
   | "menu"
-  | "clock";
+  | "clock"
+  | "thumbs-up"
+  | "thumbs-down"
+  | "brain"
+  | "money-bag";
 
 interface IconProps {
   name: IconName;
@@ -168,6 +172,24 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <circle cx="12" cy="12" r="9" stroke="currentColor" />
       <path d="M12 7v5l3 3" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  "thumbs-up": (
+    <path d="M7 11v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1zM14 10V8a2 2 0 0 0-2-2h-2v10h4a2 2 0 0 0 2-2v-4h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-4z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+  ),
+  "thumbs-down": (
+    <path d="M17 13V5a1 1 0 0 0-1-1h-2v10h4a2 2 0 0 1 2 2v2a1 1 0 0 1-1 1h-4v2a2 2 0 0 0 2-2zM7 11V3a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+  ),
+  "brain": (
+    <>
+      <path d="M9.5 6.5a2.5 2.5 0 0 1 2 2.5v1a1 1 0 0 1-1 1 1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1 1 1 0 0 1-1-1V9a2.5 2.5 0 0 1 2-2.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14.5 6.5a2.5 2.5 0 0 0-2 2.5v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1 1 1 0 0 0 1-1V9a2.5 2.5 0 0 0-2-2.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  "money-bag": (
+    <>
+      <path d="M12 4c-2 0-3.5 1.5-4 3H5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-3c-.5-1.5-2-3-4-3z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 5h4" stroke="currentColor" strokeLinecap="round" />
     </>
   ),
 };

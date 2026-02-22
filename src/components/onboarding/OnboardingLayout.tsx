@@ -1,5 +1,4 @@
 import React from "react";
-import { ProgressBar } from "./ProgressBar";
 import { Button } from "@/components/ui/Button";
 import { TOTAL_STEPS } from "@/lib/onboardingSchema";
 
@@ -14,10 +13,13 @@ interface OnboardingLayoutProps {
   children: React.ReactNode;
 }
 
+const QUESTIONNAIRE_MAX_WIDTH = 720;
+const QUESTIONNAIRE_PADDING_X = 48;
+/** Content column width: slider, choices, and Back/Next align to this */
+const CONTENT_MAX_WIDTH = 480;
+
 export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
   step,
-  title,
-  subtitle,
   canNext,
   onBack,
   onNext,
@@ -29,70 +31,103 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
     style={{
       minHeight: "calc(100vh - var(--nav-height))",
       display: "flex",
-      alignItems: "flex-start",
+      flexDirection: "column",
+      alignItems: "center",
       justifyContent: "center",
-      padding: "48px 20px 64px",
+      padding: "32px 24px 40px",
       backgroundColor: "var(--color-bg)",
+      overflow: "auto",
     }}
   >
-    {/* Centered card */}
-    <div style={{
-      width: "100%",
-      maxWidth: "560px",
-      backgroundColor: "var(--color-surface)",
-      borderRadius: "var(--radius-2xl)",
-      boxShadow: "var(--shadow-md)",
-      padding: "40px 44px 36px",
-    }}>
-      {/* Progress bar */}
-      <ProgressBar step={step} />
-
-      {/* Step indicator */}
-      <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontFamily: "var(--font-sans)", marginBottom: "16px", letterSpacing: "0.04em" }}>
-        Step {step} of {TOTAL_STEPS}
-      </div>
-
-      {/* Heading */}
-      <h1 style={{
-        fontFamily: "var(--font-serif)",
-        fontSize: "var(--text-xl)",
-        fontWeight: 600,
-        color: "var(--color-text)",
-        lineHeight: 1.25,
-        marginBottom: subtitle ? "8px" : "24px",
-      }}>
-        {title}
-      </h1>
-      {subtitle && (
-        <p style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)", lineHeight: 1.65, marginBottom: "28px" }}>
-          {subtitle}
-        </p>
-      )}
-
-      {/* Step content */}
-      <div style={{ marginBottom: "32px" }}>
-        {children}
-      </div>
-
-      {/* Navigation buttons */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-        {step > 1 ? (
-          <Button variant="secondary" size="md" onClick={onBack} style={{ minWidth: "100px" }}>
-            Back
-          </Button>
-        ) : (
-          <div /> /* spacer keeps Next on the right */
-        )}
-
-        <Button
-          variant="primary"
-          size="md"
-          onClick={onNext}
-          disabled={!canNext}
-          style={{ minWidth: "120px" }}
+    {/* Single shared container: same width for progress, questions, choices, buttons; beige border */}
+    <div
+      style={{
+        width: "100%",
+        maxWidth: QUESTIONNAIRE_MAX_WIDTH,
+        padding: `24px ${QUESTIONNAIRE_PADDING_X}px 24px`,
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "0",
+        border: "1px solid var(--color-beige)",
+        borderRadius: "var(--radius-xl)",
+        backgroundColor: "var(--color-bg)",
+      }}
+    >
+      {/* Progress: same width as questions/choices (480) so everything aligns */}
+      <div style={{ width: "100%", maxWidth: CONTENT_MAX_WIDTH, margin: "0 auto 28px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            marginBottom: "8px",
+          }}
         >
-          {isLastStep ? "See my path" : "Next"}
-        </Button>
+          <span
+            style={{
+              fontFamily: "var(--font-sans)",
+              fontSize: "var(--text-xs)",
+              fontWeight: 500,
+              color: "var(--color-text-muted)",
+              letterSpacing: "0.02em",
+            }}
+          >
+            {step} of {TOTAL_STEPS}
+          </span>
+        </div>
+        <div
+          style={{
+            height: "8px",
+            borderRadius: "var(--radius-full)",
+            backgroundColor: "var(--color-border-light)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              width: `${(step / TOTAL_STEPS) * 100}%`,
+              backgroundColor: "var(--color-primary)",
+              borderRadius: "var(--radius-full)",
+              transition: "width 280ms var(--ease-out)",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Step content + buttons: same width as questions/choices (480) */}
+      <div style={{ width: "100%", maxWidth: CONTENT_MAX_WIDTH, margin: "0 auto", flex: "1 1 auto", minHeight: "0", display: "flex", flexDirection: "column" }}>
+        <div style={{ marginBottom: "8px", flex: "1 1 auto", minHeight: "0" }}>
+          {children}
+        </div>
+
+        {/* Navigation buttons — aligned with content, closer to questions */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexShrink: 0,
+          }}
+        >
+          {step > 1 ? (
+            <Button variant="outlineBlack" size="md" onClick={onBack} style={{ minWidth: "100px" }}>
+              Back
+            </Button>
+          ) : (
+            <div />
+          )}
+          <Button
+            variant="pink"
+            size="md"
+            onClick={onNext}
+            disabled={!canNext}
+            style={{ minWidth: "120px", border: "2px solid var(--color-black)", color: "var(--color-black)" }}
+          >
+            {isLastStep ? "See my path" : "Next"}
+          </Button>
+        </div>
       </div>
     </div>
   </div>

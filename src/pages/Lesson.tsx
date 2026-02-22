@@ -9,7 +9,6 @@ export const Lesson: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [selectedText, setSelectedText] = useState<string | undefined>();
-  const [tutorVisible, setTutorVisible] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const lesson = slug ? lessonContents[slug] : null;
@@ -26,7 +25,6 @@ export const Lesson: React.FC = () => {
     const text = selection?.toString().trim();
     if (text && text.length > 1 && text.length < 60) {
       setSelectedText(text);
-      setTutorVisible(true);
     }
   }, []);
 
@@ -54,43 +52,33 @@ export const Lesson: React.FC = () => {
         onMouseUp={handleTextSelect}
         style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: "var(--space-8)" }}
       >
-        {/* Top action bar — matches class.png "Want to learn more?" + "Hide this" */}
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-6)" }}>
-          <button
-            style={{
-              display: "inline-flex", alignItems: "center", gap: "7px",
-              padding: "9px 18px", borderRadius: "var(--radius-full)",
-              border: "1px solid var(--color-border)", backgroundColor: "var(--color-surface)",
-              fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)",
-              cursor: "pointer", fontFamily: "var(--font-sans)", boxShadow: "var(--shadow-sm)",
-              transition: "box-shadow var(--duration-fast), background-color var(--duration-fast)",
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface)"; }}
-            onClick={() => navigate("/library")}
-          >
-            {/* Hand / cursor icon matching mock */}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-2.5" />
-            </svg>
-            Want to learn more?
-          </button>
-          <button
-            style={{
-              display: "inline-flex", alignItems: "center", gap: "6px",
-              padding: "9px 18px", borderRadius: "var(--radius-full)",
-              border: "1px solid var(--color-border)", backgroundColor: "var(--color-surface)",
-              fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--color-text-muted)",
-              cursor: "pointer", fontFamily: "var(--font-sans)",
-              transition: "background-color var(--duration-fast)",
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface)"; }}
-            onClick={() => setTutorVisible(!tutorVisible)}
-          >
-            <Icon name={tutorVisible ? "x" : "sparkle"} size={13} strokeWidth={2} />
-            {tutorVisible ? "Hide this" : "Show helper"}
-          </button>
+        {/* Top action row — three feedback actions (UI only) */}
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-6)", flexWrap: "wrap" }}>
+          {[
+            { icon: "thumbs-up" as const, label: "learn more like this" },
+            { icon: "thumbs-down" as const, label: "not relevant" },
+            { icon: "brain" as const, label: "i already know this" },
+          ].map(({ icon, label }) => (
+            <button
+              key={label}
+              type="button"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: "7px",
+                padding: "9px 16px", borderRadius: "var(--radius-full)",
+                border: "1px solid var(--color-border)", backgroundColor: "var(--color-surface)",
+                fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--color-text)",
+                cursor: "pointer", fontFamily: "var(--font-sans)", boxShadow: "var(--shadow-sm)",
+                transition: "box-shadow var(--duration-fast), background-color var(--duration-fast)",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface)"; }}
+              onFocus={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
+              onBlur={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface)"; }}
+            >
+              <Icon name={icon} size={14} strokeWidth={1.8} />
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Lesson content */}
@@ -167,11 +155,7 @@ export const Lesson: React.FC = () => {
       </div>
 
       {/* Right TutorPanel */}
-      <TutorPanel
-        selectedText={selectedText}
-        visible={tutorVisible}
-        onClose={() => setTutorVisible(false)}
-      />
+      <TutorPanel selectedText={selectedText} visible />
     </div>
   );
 };

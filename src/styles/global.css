@@ -83,20 +83,23 @@ p { line-height: var(--leading-relaxed); }
   font-family: var(--font-sans);
 }
 
-/* Pro-tip box */
+/* Pro-tip box — green gradient look, icon in header (mock) */
 .pro-tip {
-  padding: 12px 14px;
-  background: var(--color-accent-light);
-  border: 1px solid var(--color-accent-border);
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #f0f7f0 0%, #ffffff 100%);
+  border: 1px solid rgba(28, 63, 42, 0.18);
   border-radius: var(--radius-md);
+  box-shadow: 0 1px 2px rgba(28, 63, 42, 0.06);
 }
 .pro-tip__label {
+  display: flex;
+  align-items: center;
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-accent);
-  margin-bottom: 4px;
+  color: var(--color-text);
+  margin-bottom: 6px;
   font-family: var(--font-sans);
 }
 .pro-tip__text {
@@ -159,6 +162,31 @@ p { line-height: var(--leading-relaxed); }
 @keyframes chipIn {
   from { opacity: 0; transform: scale(0.96) translateY(3px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Get Started transition (pig shake, coin drop, loading dots) ── */
+@keyframes pigShake {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  15%      { transform: translateY(-2px) rotate(-3deg); }
+  30%      { transform: translateY(0) rotate(2deg); }
+  45%      { transform: translateY(-1px) rotate(-2deg); }
+  60%      { transform: translateY(0) rotate(1deg); }
+  75%      { transform: translateY(-1px) rotate(-1deg); }
+}
+@keyframes coinDrop {
+  0%   { transform: translateY(-80px); opacity: 1; }
+  70%  { transform: translateY(12px); opacity: 1; }
+  100% { transform: translateY(18px); opacity: 0; }
+}
+@keyframes loadingDotsBounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30%            { transform: translateY(-8px); }
+}
+
+/* ── Post-questionnaire: pigs walking with books ── */
+@keyframes pigsWalk {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(20px); }
 }
 
 /* ── Card grid stagger ── */

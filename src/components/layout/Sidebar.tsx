@@ -94,18 +94,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </p>
           )}
 
-          {/* Lesson list */}
-          <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "1px" }}>
+          {/* Lesson list — beige cards per item; selected = dark green pill */}
+          <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
             {lessons.map((lesson, idx) => {
               const isActive = slug === lesson.slug;
               const isLocked = lesson.status === "locked";
               const rowStyle: React.CSSProperties = {
                 display: "flex", alignItems: "center", gap: "10px",
-                padding: "9px 10px", borderRadius: "var(--radius-md)",
+                padding: "10px 12px", borderRadius: "var(--radius-md)",
                 textDecoration: "none",
                 opacity: isLocked ? 0.48 : 1,
                 cursor: isLocked ? "default" : "pointer",
-                backgroundColor: isActive ? "var(--color-primary)" : "transparent",
+                backgroundColor: isActive ? "var(--color-primary)" : "#F5F0E5",
                 transition: "background-color var(--duration-fast)",
               };
               const rowContent = (
@@ -123,15 +123,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               );
 
               if (isLocked) {
-                return <li key={lesson.id}><div style={rowStyle}>{rowContent}</div></li>;
+                return <li key={lesson.id}><div style={{ ...rowStyle, cursor: "default" }}>{rowContent}</div></li>;
               }
               return (
                 <li key={lesson.id}>
                   <Link
                     to={`/lesson/${lesson.slug}`}
                     style={rowStyle}
-                    onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
-                    onMouseLeave={(e)  => { if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
+                    onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = "#ebe6dc"; }}
+                    onMouseLeave={(e)  => { if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = "#F5F0E5"; }}
                   >
                     {rowContent}
                   </Link>
@@ -142,8 +142,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Pro Tip */}
           <div className="pro-tip" style={{ marginTop: "20px" }}>
-            <div className="pro-tip__label">Pro Tip</div>
-            <p className="pro-tip__text">Highlight any confusing term to get instant AI help!</p>
+            <div className="pro-tip__label">
+              <Icon name="sparkle" size={16} color="var(--color-primary)" strokeWidth={2} style={{ marginRight: "6px", verticalAlign: "middle" }} />
+              Pro Tip
+            </div>
+            <p className="pro-tip__text">Highlight any confusing term to get instant AI help from Wilbur!</p>
           </div>
         </div>
       )}

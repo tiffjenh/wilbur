@@ -7,7 +7,7 @@ export const WorkStatus = z.enum(["in_school", "working", "both", "neither"]);
 /* ── Step 2 ── */
 export const IncomeType = z.enum(["w2", "1099", "both", "no_income"]);
 export const IncomeRange = z.enum([
-  "under_15k", "15_30k", "30_60k", "60_100k", "100_200k", "200k_plus",
+  "under_15k", "15_30k", "30_60k", "60_100k", "100k_plus",
 ]);
 
 /* ── Step 3 ── */
@@ -15,7 +15,7 @@ export const SavingsRange = z.enum(["zero", "under_1k", "1k_5k", "5k_20k", "20k_
 export const DebtRange = z.enum(["zero", "under_1k", "1k_10k", "10k_50k", "50k_plus"]);
 
 /* ── Step 4 ── */
-export const BenefitOption = z.enum(["401k", "hsa", "fsa", "rsu", "none"]);
+export const BenefitOption = z.enum(["401k", "hsa", "fsa", "stock_options", "rsu", "none"]);
 export const InvestingExp = z.enum(["never", "a_little", "yes_regularly"]);
 
 /* ── Step 5 ── */
@@ -24,8 +24,8 @@ export const GoalThisYear = z.enum([
   "buy_car", "save_travel", "nothing",
 ]);
 export const Goal3to5 = z.enum([
-  "buy_home", "career_growth", "start_business",
-  "build_investments", "not_sure",
+  "save_home_down_payment", "buy_car", "start_business",
+  "build_investments", "pay_off_debt", "emergency_fund",
 ]);
 
 /* ── Step 6 ── */
@@ -77,9 +77,11 @@ export const STEP_REQUIRED_FIELDS: (keyof OnboardingData)[][] = [
   [],
   [],
   [],
+  [],
+  [],
 ];
 
-export const TOTAL_STEPS = 6;
+export const TOTAL_STEPS = 8;
 
 /* LocalStorage key */
 export const LS_KEY = "wilbur_onboarding_profile";
@@ -109,35 +111,35 @@ export const INCOME_TYPE_LABELS: Record<z.infer<typeof IncomeType>, string> = {
 };
 
 export const INCOME_RANGE_LABELS: Record<z.infer<typeof IncomeRange>, string> = {
-  under_15k: "Under $15k",
-  "15_30k": "$15k–$30k",
-  "30_60k": "$30k–$60k",
-  "60_100k": "$60k–$100k",
-  "100_200k": "$100k–$200k",
-  "200k_plus": "$200k+",
+  under_15k: "Under $15K",
+  "15_30k": "$15 - 30K",
+  "30_60k": "$30 - 60K",
+  "60_100k": "$60 - 100K",
+  "100k_plus": "$100K+",
 };
 
 export const SAVINGS_RANGE_LABELS: Record<z.infer<typeof SavingsRange>, string> = {
   zero: "$0",
-  under_1k: "Under $1k",
-  "1k_5k": "$1k–$5k",
-  "5k_20k": "$5k–$20k",
-  "20k_plus": "$20k+",
+  under_1k: "Under $1K",
+  "1k_5k": "$1 - 5K",
+  "5k_20k": "$5 - 20K",
+  "20k_plus": "$20K+",
 };
 
 export const DEBT_RANGE_LABELS: Record<z.infer<typeof DebtRange>, string> = {
   zero: "$0",
-  under_1k: "Under $1k",
-  "1k_10k": "$1k–$10k",
-  "10k_50k": "$10k–$50k",
-  "50k_plus": "$50k+",
+  under_1k: "Under $1K",
+  "1k_10k": "$1 - 10K",
+  "10k_50k": "$10 - 50K",
+  "50k_plus": "$50K+",
 };
 
 export const BENEFIT_LABELS: Record<z.infer<typeof BenefitOption>, string> = {
   "401k": "401(k)",
   hsa: "HSA",
   fsa: "FSA",
-  rsu: "Stock options / RSUs",
+  stock_options: "Stock options",
+  rsu: "RSUs",
   none: "None",
 };
 
@@ -157,11 +159,12 @@ export const GOALS_YEAR_LABELS: Record<z.infer<typeof GoalThisYear>, string> = {
 };
 
 export const GOALS_3_5_LABELS: Record<z.infer<typeof Goal3to5>, string> = {
-  buy_home: "Buy a home",
-  career_growth: "Career growth",
+  save_home_down_payment: "Save for a home down payment",
+  buy_car: "Buy a car",
   start_business: "Start a business",
   build_investments: "Build investments",
-  not_sure: "Not sure",
+  pay_off_debt: "Pay off debt",
+  emergency_fund: "Build an emergency fund",
 };
 
 export const STRESSOR_LABELS: Record<z.infer<typeof MoneyStressor>, string> = {

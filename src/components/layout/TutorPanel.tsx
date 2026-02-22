@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Icon } from "../ui/Icon";
-import { MascotPink } from "../ui/MascotPink";
 
 interface TutorPanelProps {
   selectedText?: string;
   visible?: boolean;
-  onClose?: () => void;
 }
 
-const keyTerms = ["Index Fund", "Compound Interest", "Diversification", "Dollar-Cost Averaging"];
+const keyTerms = ["APY", "FDIC", "debit card", "overdraft", "direct deposit"];
 
 const explanations: Record<string, string> = {
   "Index Fund": "An index fund tracks a market index (e.g. S&P 500). Instead of picking individual stocks, you own a tiny slice of every company in that index — instant diversification at low cost.",
@@ -38,7 +36,9 @@ const ThinkingDots: React.FC = () => (
   </div>
 );
 
-export const TutorPanel: React.FC<TutorPanelProps> = ({ selectedText, visible = true, onClose }) => {
+const WILBUR_ANSWERS_BG = "#F5F0E5";
+
+export const TutorPanel: React.FC<TutorPanelProps> = ({ selectedText, visible = true }) => {
   const [activeTerm, setActiveTerm] = useState<string | null>(null);
   const [inputText, setInputText]   = useState("");
   const [thinking, setThinking]     = useState(false);
@@ -89,21 +89,12 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({ selectedText, visible = 
       {visible && (
         <div style={{ padding: "22px 18px 28px", animation: "tutorSlideIn var(--duration-normal) var(--ease-out)" }}>
 
-          {/* ── Header ── */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <div style={{ width: "20px", height: "20px", borderRadius: "50%", backgroundColor: "var(--color-pink-bg)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <MascotPink size={26} style={{ marginTop: "4px" }} />
-              </div>
-              <span style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-md)", fontWeight: 600, color: "var(--color-text)" }}>
-                AI Helper
-              </span>
-            </div>
-            {onClose && (
-              <button onClick={onClose} aria-label="Close helper" style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", color: "var(--color-text-muted)", lineHeight: 0 }}>
-                <Icon name="x" size={15} />
-              </button>
-            )}
+          {/* ── Header (no close button; always visible) ── */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "18px" }}>
+            <Icon name="sparkle" size={20} color="var(--color-primary)" strokeWidth={2} />
+            <span style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-md)", fontWeight: 700, color: "var(--color-text)" }}>
+              Wilbur Answers
+            </span>
           </div>
 
           {/* ── Content ── */}
@@ -161,20 +152,25 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({ selectedText, visible = 
                   Confused? Highlight any text to get an instant, simple explanation.
                 </p>
                 <div style={{
-                  backgroundColor: "var(--color-surface-hover)", borderRadius: "var(--radius-md)",
-                  padding: "11px 13px", fontSize: "var(--text-xs)", color: "var(--color-text-muted)", lineHeight: 1.6,
+                  backgroundColor: WILBUR_ANSWERS_BG,
+                  borderRadius: "var(--radius-full)",
+                  padding: "12px 16px",
+                  fontSize: "var(--text-xs)",
+                  color: "var(--color-text)",
+                  lineHeight: 1.6,
+                  fontFamily: "var(--font-sans)",
                 }}>
-                  Try it: Highlight terms like <strong style={{ color: "var(--color-text-secondary)" }}>'APY'</strong> or <strong style={{ color: "var(--color-text-secondary)" }}>'compound interest'</strong>
+                  <strong>Try it:</strong> Highlight terms like &quot;APY&quot; or &quot;compound interest&quot;
                 </div>
               </div>
             </>
           )}
 
-          {/* ── Key Terms ── */}
+          {/* ── Key Terms (mock: light beige chips) ── */}
           {keyTerms.length > 0 && (
             <div style={{ marginBottom: "20px" }}>
-              <div className="section-label" style={{ marginBottom: "10px" }}>Key Terms:</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--color-text)", marginBottom: "10px", fontFamily: "var(--font-sans)" }}>Key Terms:</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {keyTerms.map((term) => {
                   const isActive = activeTerm === term && shownTerm === term;
                   return (
@@ -182,19 +178,19 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({ selectedText, visible = 
                       key={term}
                       onClick={() => handleTermClick(term)}
                       style={{
-                        display: "block", width: "100%", textAlign: "left",
-                        padding: "9px 12px",
+                        display: "block", width: "100%", textAlign: "center",
+                        padding: "10px 14px",
                         borderRadius: "var(--radius-md)",
-                        border: "1px solid var(--color-border-light)",
-                        backgroundColor: isActive ? "var(--color-surface-hover)" : "var(--color-surface)",
+                        border: "none",
+                        backgroundColor: isActive ? "rgba(28, 63, 42, 0.08)" : WILBUR_ANSWERS_BG,
                         fontSize: "var(--text-sm)", fontWeight: isActive ? 600 : 400,
                         color: "var(--color-text)",
                         fontFamily: "var(--font-sans)", cursor: "pointer",
                         transition: "background-color var(--duration-fast)",
-                        boxShadow: isActive ? "none" : "var(--shadow-xs)",
+                        boxShadow: "none",
                       }}
                       onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
-                      onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface)"; }}
+                      onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = WILBUR_ANSWERS_BG; }}
                     >
                       {term}
                     </button>

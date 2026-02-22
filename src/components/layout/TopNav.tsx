@@ -3,38 +3,51 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/Button";
 import { AccountPopup } from "../ui/Modal";
 import { MascotPink } from "../ui/MascotPink";
-import { Icon } from "../ui/Icon";
+import { Icon, type IconName } from "../ui/Icon";
 import { isAuthed } from "@/lib/stubData";
 import { Drawer } from "../ui/Drawer";
 
-interface DropdownItem { label: string; description?: string; href: string; }
+interface DropdownItem { label: string; description?: string; href: string; icon?: IconName; }
 interface NavItem {
   label: string;
   href: string;
   dropdown?: { header?: string; items: DropdownItem[] };
 }
 
+/** Show full nav (Dashboard, Learning, Library, Resources) when user has completed onboarding or has a session */
+const LS_ONBOARDING = "wilbur_onboarding_profile";
+const LS_SESSION = "wilbur_user_session";
+
+function hasFullNavAccess(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return !!(localStorage.getItem(LS_ONBOARDING) || localStorage.getItem(LS_SESSION));
+  } catch {
+    return false;
+  }
+}
+
 const NAV_ITEMS: NavItem[] = [
   {
-    label: "Dashboard", href: "/dashboard",
+    label: "Dashboard", href: "/dashboard/progress",
     dropdown: {
       header: "GET STARTED",
       items: [
-        { label: "Progress Tracker",  description: "Track your learning journey",    href: "/dashboard" },
-        { label: "My Roadmap",        description: "Personalized lesson sequence",   href: "/dashboard" },
-        { label: "Confidence Meter",  description: "See how confident you are",      href: "/dashboard" },
+        { label: "Progress Tracker",  description: "Track your learning journey",    href: "/dashboard/progress", icon: "target" },
+        { label: "Confidence Meter",  description: "See how confident you are",      href: "/dashboard/progress", icon: "bar-chart" },
       ],
     },
   },
+  { label: "Learning", href: "/learning" },
   {
     label: "Library", href: "/library",
     dropdown: {
       header: "EXPLORE",
       items: [
-        { label: "All Topics",    description: "Browse all lessons by category",    href: "/library" },
-        { label: "Investing",     description: "Stocks, bonds, real estate & more", href: "/library/investing" },
-        { label: "Budgeting",     description: "Managing your money",               href: "/library/budgeting" },
-        { label: "Credit & Debt", description: "Credit scores and debt management", href: "/library/credit-debt" },
+        { label: "All Topics",    description: "Browse all lessons by category",    href: "/library", icon: "book-open" },
+        { label: "Investing",     description: "Stocks, bonds, real estate & more", href: "/library/investing", icon: "trend-up" },
+        { label: "Budgeting",     description: "Managing your money",               href: "/library/budgeting", icon: "wallet" },
+        { label: "Credit & Debt", description: "Credit scores and debt management", href: "/library/credit-debt", icon: "credit-card" },
       ],
     },
   },
@@ -43,14 +56,13 @@ const NAV_ITEMS: NavItem[] = [
     dropdown: {
       header: "EXPLORE",
       items: [
-        { label: "Simulators",        description: "Interactive learning tools",    href: "/resources/simulators" },
-        { label: "Templates",         description: "Budget and planning templates", href: "/resources/templates" },
-        { label: "Glossary",          description: "Financial terms explained",     href: "/resources/glossary" },
-        { label: "Recommended Books", description: "Curated reading list",          href: "/resources/books" },
+        { label: "Simulators",        description: "Interactive learning tools",    href: "/resources/simulators", icon: "sparkle" },
+        { label: "Templates",         description: "Budget and planning templates", href: "/resources/templates", icon: "clipboard" },
+        { label: "Glossary",          description: "Financial terms explained",     href: "/resources/glossary", icon: "book-open" },
+        { label: "Recommended Books", description: "Curated reading list",          href: "/resources/books", icon: "star" },
       ],
     },
   },
-  { label: "My Profile", href: "/profile" },
 ];
 
 /* ── Nav item with click-open dropdown ── */
@@ -59,9 +71,11 @@ interface NavDropdownProps {
   isOpen: boolean;
   onOpen: () => void;
   onClose: () => void;
+  /** When set, dropdown link clicks call this instead of navigating (e.g. account gate). */
+  gateLinkClick?: (e: React.MouseEvent, href: string) => void;
 }
 
-const NavDropdown: React.FC<NavDropdownProps> = ({ item, isOpen, onOpen, onClose }) => {
+const NavDropdown: React.FC<NavDropdownProps> = ({ item, isOpen, onOpen, onClose, gateLinkClick }) => {
   const location = useLocation();
   const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + "/");
   const wrapRef  = useRef<HTMLDivElement>(null);
@@ -124,7 +138,7 @@ const NavDropdown: React.FC<NavDropdownProps> = ({ item, isOpen, onOpen, onClose
             left: "50%",
             transform: "translateX(-50%)",
             backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border-light)",
+            border: "2px solid var(--color-black)",
             borderRadius: "var(--radius-lg)",
             boxShadow: "var(--shadow-dropdown)",
             minWidth: "228px",
@@ -142,9 +156,20 @@ const NavDropdown: React.FC<NavDropdownProps> = ({ item, isOpen, onOpen, onClose
             <Link
               key={d.href + d.label}
               to={d.href}
-              onClick={onClose}
+              onClick={(e) => {
+                if (gateLinkClick) {
+                  e.preventDefault();
+                  gateLinkClick(e, d.href);
+                  onClose();
+                } else {
+                  onClose();
+                }
+              }}
               style={{
-                display: "block",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                minHeight: "44px",
                 padding: "9px 10px",
                 borderRadius: "var(--radius-md)",
                 textDecoration: "none",
@@ -153,14 +178,21 @@ const NavDropdown: React.FC<NavDropdownProps> = ({ item, isOpen, onOpen, onClose
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
             >
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)", lineHeight: 1.25, marginBottom: "2px" }}>
-                {d.label}
-              </div>
-              {d.description && (
-                <div style={{ fontSize: "12px", color: "var(--color-text-muted)", lineHeight: 1.35 }}>
-                  {d.description}
-                </div>
+              {d.icon != null && (
+                <span style={{ flexShrink: 0, color: "var(--color-text-secondary)" }}>
+                  <Icon name={d.icon} size={18} strokeWidth={1.8} />
+                </span>
               )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)", lineHeight: 1.25, marginBottom: "2px" }}>
+                  {d.label}
+                </div>
+                {d.description && (
+                  <div style={{ fontSize: "12px", color: "var(--color-text-muted)", lineHeight: 1.35 }}>
+                    {d.description}
+                </div>
+                )}
+              </div>
             </Link>
           ))}
         </div>
@@ -174,8 +206,15 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [showPopup, setShowPopup]       = useState(false);
   const [mobileOpen, setMobileOpen]     = useState(false);
+  const [hasAccess, setHasAccess]       = useState(() => hasFullNavAccess());
   const navigate  = useNavigate();
   const location  = useLocation();
+  const pathname  = location.pathname;
+
+  /* Re-check onboarding/session when route changes (e.g. after completing onboarding) */
+  useEffect(() => {
+    setHasAccess(hasFullNavAccess());
+  }, [pathname]);
 
   /* Close dropdown on ESC */
   useEffect(() => {
@@ -186,10 +225,26 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
 
   useEffect(() => { setOpenDropdown(null); setMobileOpen(false); }, [location.pathname]);
 
-  const handleGetStarted = useCallback(() => {
+  const handleLogin = useCallback(() => {
     if (!isAuthed) setShowPopup(true);
-    else navigate("/onboarding");
+    else navigate("/dashboard/progress");
   }, [navigate]);
+  const handleSignUp = useCallback(() => {
+    setShowPopup(true);
+  }, []);
+
+  /* Dashboard click: if not authed, show account modal; then modal actions go to /dashboard/progress */
+  const handleDashboardClick = useCallback((e: React.MouseEvent, href: string) => {
+    if (!isAuthed) {
+      e.preventDefault();
+      setShowPopup(true);
+    } else {
+      navigate(href);
+    }
+  }, [navigate]);
+
+  /* Full nav only when not on homepage, not on onboarding, AND (onboarding complete OR session exists) */
+  const showFullNav = pathname !== "/" && pathname !== "/onboarding" && hasAccess;
 
   return (
     <>
@@ -201,7 +256,7 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
         display: "flex", alignItems: "center",
         padding: "0 var(--page-px)", gap: "var(--space-5)",
       }}>
-        {/* Mobile hamburger */}
+        {/* Mobile hamburger — only show when full nav is available */}
         <button
           aria-label="Open menu"
           className="nav-hamburger"
@@ -211,7 +266,7 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
           <Icon name="menu" size={20} />
         </button>
 
-        {/* Logo — small pig matches nav in all mocks */}
+        {/* Logo — always visible */}
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", flexShrink: 0 }}>
           <div style={{ width: "26px", height: "26px", overflow: "hidden", borderRadius: "50%", backgroundColor: "var(--color-pink-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <MascotPink size={34} style={{ marginTop: "6px" }} />
@@ -221,27 +276,29 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
           </span>
         </Link>
 
-        {/* Spacer — pushes nav + CTA to the right */}
+        {/* Spacer */}
         <div style={{ flex: 1, minWidth: 0 }} />
 
-        {/* Desktop nav + CTA aligned right, grouped together */}
+        {/* Desktop: nav tabs (only when showFullNav) + Login + Sign up flush right */}
         <div className="nav-links" style={{ display: "flex", alignItems: "center", gap: "var(--space-6)", flexShrink: 0 }}>
-          {NAV_ITEMS.map((item) => (
+          {showFullNav && NAV_ITEMS.map((item) => (
             <NavDropdown
               key={item.label}
               item={item}
               isOpen={openDropdown === item.label}
               onOpen={() => setOpenDropdown(item.label)}
               onClose={() => setOpenDropdown(null)}
+              gateLinkClick={item.label === "Dashboard" ? handleDashboardClick : undefined}
             />
           ))}
-          <Button
-            variant="primary" size="sm"
-            onClick={handleGetStarted}
-            style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "8px 18px" }}
-          >
-            Get Started
-          </Button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: showFullNav ? 0 : "auto" }}>
+            <Button variant="primary" size="sm" onClick={handleLogin} style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "8px 16px" }}>
+              Login
+            </Button>
+            <Button variant="outlineBlack" size="sm" onClick={handleSignUp} style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "8px 16px", borderWidth: "2px" }}>
+              Sign up
+            </Button>
+          </div>
         </div>
       </nav>
 
@@ -259,18 +316,19 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
               <Icon name="x" size={18} />
             </button>
           </div>
-          {NAV_ITEMS.map((item) => (
+          {showFullNav && NAV_ITEMS.map((item) => (
             <Link key={item.label} to={item.href} onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>
               {item.label}
             </Link>
           ))}
-          <div style={{ marginTop: "24px" }}>
-            <Button variant="primary" size="md" onClick={handleGetStarted} style={{ width: "100%" }}>Get Started</Button>
+          <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "10px" }}>
+            <Button variant="outlineBlack" size="md" onClick={handleSignUp} style={{ width: "100%" }}>Sign up</Button>
+            <Button variant="primary" size="md" onClick={handleLogin} style={{ width: "100%" }}>Login</Button>
           </div>
         </div>
       </Drawer>
 
-      <AccountPopup open={showPopup} onClose={() => setShowPopup(false)} onSignUp={() => { setShowPopup(false); navigate("/"); }} onLogin={() => { setShowPopup(false); navigate("/"); }} />
+      <AccountPopup open={showPopup} onClose={() => setShowPopup(false)} onSignUp={() => { setShowPopup(false); navigate("/dashboard/progress"); }} onLogin={() => { setShowPopup(false); navigate("/dashboard/progress"); }} />
     </>
   );
 };

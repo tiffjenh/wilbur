@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MascotPink } from "@/components/ui/MascotPink";
 import { MascotGreen } from "@/components/ui/MascotGreen";
+import { Icon } from "@/components/ui/Icon";
 
 /** Floating dollar badge — smaller and more subtle per mock */
 const FloatingDollar: React.FC<{ style?: React.CSSProperties; delay?: number }> = ({ style, delay = 0 }) => (
@@ -32,17 +33,97 @@ const DecorativeRing: React.FC<{ size: number; style?: React.CSSProperties }> = 
   }} />
 );
 
+/** Transition screen shown after Get Started: pig + coin + dots, then route to onboarding */
+const GetStartedTransition: React.FC<{ onDone: () => void }> = ({ onDone }) => {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2000);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  return (
+    <div
+      className="page-enter"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 50,
+        backgroundColor: "var(--color-bg)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px",
+      }}
+    >
+      <p
+        style={{
+          fontFamily: "var(--font-sans)",
+          fontSize: "var(--text-lg)",
+          color: "var(--color-text)",
+          textAlign: "center",
+          maxWidth: "420px",
+          lineHeight: 1.6,
+          marginBottom: "48px",
+        }}
+      >
+        Take a quick questionnaire to help us build a learning path tailored to you.
+      </p>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        {/* Pig with shake */}
+        <div style={{ animation: "pigShake 1.8s ease-in-out infinite" }}>
+          <MascotPink size={140} />
+        </div>
+        {/* Gold coin dropping into pig back */}
+        <div
+          style={{
+            position: "absolute",
+            top: "-24px",
+            left: "50%",
+            marginLeft: "-14px",
+            width: "28px",
+            height: "28px",
+            borderRadius: "50%",
+            background: "linear-gradient(145deg, #e8c547 0%, #c9a227 50%, #e8c547 100%)",
+            boxShadow: "none",
+            animation: "coinDrop 2s ease-in 1 forwards",
+          }}
+        />
+        {/* Three green dots (loading) */}
+        <div style={{ display: "flex", gap: "8px", marginTop: "20px", justifyContent: "center" }}>
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              style={{
+                width: "10px",
+                height: "10px",
+                borderRadius: "50%",
+                backgroundColor: "var(--color-primary)",
+                animation: `loadingDotsBounce 1s ease-in-out infinite ${i * 120}ms`,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const Home: React.FC = () => {
-  const [launching, setLaunching] = useState(false);
+  const [showTransition, setShowTransition] = useState(false);
   const navigate = useNavigate();
 
   const handleGetStarted = () => {
-    setLaunching(true);
-    setTimeout(() => navigate("/onboarding"), 700);
+    setShowTransition(true);
+  };
+
+  const goToOnboarding = () => {
+    navigate("/onboarding");
   };
 
   return (
-    <div className="page-enter" style={{ minHeight: "calc(100vh - var(--nav-height))", display: "flex", flexDirection: "column" }}>
+    <>
+      {showTransition && <GetStartedTransition onDone={goToOnboarding} />}
+      <div className="page-enter" style={{ minHeight: "calc(100vh - var(--nav-height))", display: "flex", flexDirection: "column" }}>
 
       {/* ── Hero section ─────────────────────────────── */}
       <div style={{
@@ -110,24 +191,25 @@ export const Home: React.FC = () => {
             <button
               onClick={handleGetStarted}
               style={{
-                display: "inline-flex", alignItems: "center",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
                 padding: "14px 30px",
-                backgroundColor: "var(--color-primary)",
-                color: "#fff",
-                border: "none",
-                borderRadius: "var(--radius-full)",
+                backgroundColor: "var(--color-pink)",
+                color: "var(--color-black)",
+                border: "2px solid var(--color-black)",
+                borderRadius: "var(--radius-lg)",
                 fontSize: "var(--text-base)",
                 fontWeight: 600,
                 fontFamily: "var(--font-sans)",
                 cursor: "pointer",
                 letterSpacing: "0.005em",
-                boxShadow: "0 2px 8px rgba(28, 63, 42, 0.3)",
-                transition: "background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out)",
-                animation: launching ? "pigBounce 0.7s ease-in-out" : "none",
+                transition: "background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), filter var(--duration-fast)",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-primary-hover)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(28, 63, 42, 0.35)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-primary)"; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 8px rgba(28, 63, 42, 0.3)"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.filter = "brightness(0.97)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.filter = "none"; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}
             >
+              <Icon name="money-bag" size={18} strokeWidth={2} color="currentColor" style={{ flexShrink: 0 }} />
               Get started
             </button>
           </div>
@@ -202,5 +284,6 @@ export const Home: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };

@@ -1,7 +1,7 @@
 import React from "react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "outline";
+  variant?: "primary" | "secondary" | "ghost" | "outline" | "outlineBlack" | "pink";
   size?: "sm" | "md" | "lg";
   children: React.ReactNode;
 }
@@ -11,22 +11,37 @@ const variantBase: Record<string, React.CSSProperties> = {
     backgroundColor: "var(--color-primary)",
     color: "var(--color-primary-text)",
     border: "none",
+    boxShadow: "none",
   },
   secondary: {
     backgroundColor: "var(--color-surface)",
     color: "var(--color-text)",
     border: "1px solid var(--color-border)",
-    boxShadow: "var(--shadow-xs)",
+    boxShadow: "none",
   },
   ghost: {
     backgroundColor: "transparent",
     color: "var(--color-text-secondary)",
     border: "none",
+    boxShadow: "none",
   },
   outline: {
     backgroundColor: "transparent",
     color: "var(--color-primary)",
     border: "1.5px solid var(--color-primary)",
+    boxShadow: "none",
+  },
+  outlineBlack: {
+    backgroundColor: "transparent",
+    color: "var(--color-black)",
+    border: "2px solid var(--color-black)",
+    boxShadow: "none",
+  },
+  pink: {
+    backgroundColor: "var(--color-pink)",
+    color: "var(--color-black)",
+    border: "none",
+    boxShadow: "none",
   },
 };
 
@@ -50,8 +65,12 @@ export const Button: React.FC<ButtonProps> = ({
 
   const hoverOverride: React.CSSProperties = hovered && !disabled
     ? variant === "primary"
-      ? { backgroundColor: "var(--color-primary-hover)", transform: "translateY(-1px)", boxShadow: "var(--shadow-md)" }
-      : { opacity: 0.82, transform: "translateY(-1px)" }
+      ? { backgroundColor: "var(--color-primary-hover)", transform: "translateY(-1px)" }
+      : variant === "pink"
+        ? { filter: "brightness(0.97)", transform: "translateY(-1px)" }
+        : variant === "outlineBlack"
+          ? { backgroundColor: "rgba(26, 26, 26, 0.06)", transform: "translateY(-1px)" }
+          : { opacity: 0.82, transform: "translateY(-1px)" }
     : {};
 
   return (
@@ -64,9 +83,9 @@ export const Button: React.FC<ButtonProps> = ({
         gap: "7px",
         fontFamily: "var(--font-sans)",
         fontWeight: 600,
-        borderRadius: "var(--radius-full)",
+        borderRadius: "var(--radius-lg)",
         cursor: disabled ? "not-allowed" : "pointer",
-        transition: "background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), opacity var(--duration-fast)",
+        transition: "background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast)",
         whiteSpace: "nowrap",
         opacity: disabled ? 0.55 : 1,
         ...variantBase[variant],

@@ -1,36 +1,41 @@
 :root {
-  /* ── Page background: warm parchment matching mocks ── */
-  --color-bg: #f5f0e8;
+  /* ── Global palette (exact hex) ── */
+  --color-black: #1A1A1A;
+  --color-beige: #E3E2D2;
+  --color-green: #0E5C4C;
+  --color-pink: #FFE2E6;
+
+  /* Page background */
+  --color-bg: #FFFEF0;
   --color-surface: #ffffff;
-  --color-surface-hover: #f7f4ee;
-  --color-surface-active: #f0ece4;
+  --color-surface-hover: #f5f3e8;
+  --color-surface-active: #eeebe0;
 
   /* Borders */
   --color-border: #e2dcd2;
   --color-border-light: #eae5db;
 
   /* Text */
-  --color-text: #1a1a14;
+  --color-text: #1A1A1A;
   --color-text-secondary: #3d3d35;
   --color-text-muted: #7a7a6e;
   --color-text-placeholder: #b0ab9e;
 
-  /* Primary: dark forest green (matches "Get Started" button in mocks) */
-  --color-primary: #1c3f2a;
-  --color-primary-hover: #163220;
+  /* Primary: brand green */
+  --color-primary: #0E5C4C;
+  --color-primary-hover: #0a4739;
   --color-primary-text: #ffffff;
 
-  /* Accent: warm amber for Pro Tip / progress accents */
-  --color-accent: #a07830;
-  --color-accent-light: #f5e9c4;
-  --color-accent-border: rgba(160, 120, 48, 0.18);
+  /* Accent */
+  --color-accent: #0E5C4C;
+  --color-accent-light: rgba(14, 92, 76, 0.08);
+  --color-accent-border: rgba(14, 92, 76, 0.2);
 
-  /* Wilbur pink (mascot avatar background) */
-  --color-pink: #f2a5b8;
-  --color-pink-bg: #fde8ef;
+  /* Pink: Sign up / Get started fill */
+  --color-pink-bg: #FFE2E6;
 
   /* State */
-  --color-success: #2d6a4f;
+  --color-success: #0E5C4C;
   --color-success-bg: #d8f3dc;
   --color-locked: #b8b4ac;
   --color-locked-bg: #eeebe6;

@@ -4,7 +4,7 @@ import {
   AGE_LABELS, WORK_STATUS_LABELS,
   AgeRange, WorkStatus,
 } from "@/lib/onboardingSchema";
-import { SliderSelect, SingleSelect, Question } from "./OnboardingControls";
+import { SliderSelect, PlatformCards, Question, IconInSchool, IconWorking, IconBoth, IconNeither } from "./OnboardingControls";
 
 interface StepOneProps {
   data: Partial<OnboardingData>;
@@ -16,9 +16,17 @@ const AGE_OPTIONS = Object.entries(AGE_LABELS).map(([value, label]) => ({
   label,
 }));
 
+const WORK_ICONS: Record<string, React.ReactNode> = {
+  in_school: <IconInSchool />,
+  working: <IconWorking />,
+  both: <IconBoth />,
+  neither: <IconNeither />,
+};
+
 const WORK_OPTIONS = Object.entries(WORK_STATUS_LABELS).map(([value, label]) => ({
   value: value as ReturnType<typeof WorkStatus.parse>,
   label,
+  icon: WORK_ICONS[value],
 }));
 
 export const StepOne: React.FC<StepOneProps> = ({ data, onChange }) => (
@@ -38,7 +46,7 @@ export const StepOne: React.FC<StepOneProps> = ({ data, onChange }) => (
       number={2}
       label="Are you currently…"
     >
-      <SingleSelect
+      <PlatformCards
         options={WORK_OPTIONS}
         value={data.workStatus}
         onChange={(v) => onChange({ workStatus: v })}
