@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { getPersonalizedRoadmap, isAuthed } from "@/lib/stubData";
+import { getPersonalizedRoadmap } from "@/lib/stubData";
 import { AccountPopup } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { useNavigate } from "react-router-dom";
@@ -136,7 +136,7 @@ export const ProgressTrackerContent: React.FC = () => {
  * Route: /dashboard, /dashboard/progress
  */
 export const Dashboard: React.FC = () => {
-  const [showPopup, setShowPopup] = useState(!isAuthed);
+  const [showPopup, setShowPopup] = useState(false);
   const navigate = useNavigate();
 
   return (
@@ -148,8 +148,8 @@ export const Dashboard: React.FC = () => {
       <AccountPopup
         open={showPopup}
         onClose={() => setShowPopup(false)}
-        onSignUp={() => { setShowPopup(false); navigate("/dashboard/progress"); }}
-        onLogin={() => { setShowPopup(false); navigate("/dashboard/progress"); }}
+        onSignUp={() => { setShowPopup(false); navigate("/signup"); }}
+        onLogin={() => { setShowPopup(false); navigate("/login"); }}
       />
     </>
   );

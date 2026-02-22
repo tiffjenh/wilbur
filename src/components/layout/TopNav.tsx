@@ -4,7 +4,7 @@ import { Button } from "../ui/Button";
 import { AccountPopup } from "../ui/Modal";
 import { MascotPink } from "../ui/MascotPink";
 import { Icon, type IconName } from "../ui/Icon";
-import { isAuthed } from "@/lib/stubData";
+import { useAuth } from "@/contexts/AuthContext";
 import { Drawer } from "../ui/Drawer";
 
 interface DropdownItem { label: string; description?: string; href: string; icon?: IconName; }
@@ -225,15 +225,19 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
 
   useEffect(() => { setOpenDropdown(null); setMobileOpen(false); }, [location.pathname]);
 
-  const handleLogin = useCallback(() => {
-    if (!isAuthed) setShowPopup(true);
-    else navigate("/dashboard/progress");
-  }, [navigate]);
-  const handleSignUp = useCallback(() => {
-    setShowPopup(true);
-  }, []);
+  const { user, signOut } = useAuth();
+  const isAuthed = !!user;
 
-  /* Dashboard click: if not authed, show account modal; then modal actions go to /dashboard/progress */
+  const handleLogin = useCallback(() => {
+    if (isAuthed) navigate("/dashboard/progress");
+    else navigate("/login");
+  }, [navigate, isAuthed]);
+  const handleSignUp = useCallback(() => {
+    if (isAuthed) navigate("/dashboard/progress");
+    else navigate("/signup");
+  }, [navigate, isAuthed]);
+
+  /* Dashboard click: if not authed, show account modal (create account to track roadmap); else go to href */
   const handleDashboardClick = useCallback((e: React.MouseEvent, href: string) => {
     if (!isAuthed) {
       e.preventDefault();
@@ -241,10 +245,10 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
     } else {
       navigate(href);
     }
-  }, [navigate]);
+  }, [navigate, isAuthed]);
 
-  /* Full nav only when not on homepage, not on onboarding, AND (onboarding complete OR session exists) */
-  const showFullNav = pathname !== "/" && pathname !== "/onboarding" && hasAccess;
+  /* Full nav when not on homepage/onboarding AND (onboarding complete OR Supabase user) */
+  const showFullNav = pathname !== "/" && pathname !== "/onboarding" && (hasAccess || isAuthed);
 
   return (
     <>
@@ -279,7 +283,7 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
         {/* Spacer */}
         <div style={{ flex: 1, minWidth: 0 }} />
 
-        {/* Desktop: nav tabs (only when showFullNav) + Login + Sign up flush right */}
+        {/* Desktop: nav tabs (full nav when not home; on homepage show Learning, Library, Resources next to Login) */}
         <div className="nav-links" style={{ display: "flex", alignItems: "center", gap: "var(--space-6)", flexShrink: 0 }}>
           {showFullNav && NAV_ITEMS.map((item) => (
             <NavDropdown
@@ -291,13 +295,28 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
               gateLinkClick={item.label === "Dashboard" ? handleDashboardClick : undefined}
             />
           ))}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: showFullNav ? 0 : "auto" }}>
-            <Button variant="primary" size="sm" onClick={handleLogin} style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "8px 16px" }}>
-              Login
-            </Button>
-            <Button variant="outlineBlack" size="sm" onClick={handleSignUp} style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "8px 16px", borderWidth: "2px" }}>
-              Sign up
-            </Button>
+          {pathname === "/" && (
+            <>
+              <Link to="/learning" style={{ fontSize: "var(--text-base)", fontWeight: 500, color: "var(--color-text-secondary)", textDecoration: "none", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>Learning</Link>
+              <Link to="/library" style={{ fontSize: "var(--text-base)", fontWeight: 500, color: "var(--color-text-secondary)", textDecoration: "none", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>Library</Link>
+              <Link to="/resources" style={{ fontSize: "var(--text-base)", fontWeight: 500, color: "var(--color-text-secondary)", textDecoration: "none", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>Resources</Link>
+            </>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: showFullNav || pathname === "/" ? 0 : "auto" }}>
+            {isAuthed ? (
+              <Button variant="outlineBlack" size="sm" onClick={() => signOut()} style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "8px 16px", borderWidth: "2px" }}>
+                Log out
+              </Button>
+            ) : (
+              <>
+                <Button variant="primary" size="sm" onClick={handleLogin} style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "8px 16px" }}>
+                  Login
+                </Button>
+                <Button variant="outlineBlack" size="sm" onClick={handleSignUp} style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "8px 16px", borderWidth: "2px" }}>
+                  Sign up
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -321,14 +340,27 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
               {item.label}
             </Link>
           ))}
+          {pathname === "/" && !showFullNav && (
+            <>
+              <Link to="/learning" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>Learning</Link>
+              <Link to="/library" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>Library</Link>
+              <Link to="/resources" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>Resources</Link>
+            </>
+          )}
           <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "10px" }}>
-            <Button variant="outlineBlack" size="md" onClick={handleSignUp} style={{ width: "100%" }}>Sign up</Button>
-            <Button variant="primary" size="md" onClick={handleLogin} style={{ width: "100%" }}>Login</Button>
+            {isAuthed ? (
+              <Button variant="outlineBlack" size="md" onClick={() => { setMobileOpen(false); signOut(); }} style={{ width: "100%" }}>Log out</Button>
+            ) : (
+              <>
+                <Button variant="outlineBlack" size="md" onClick={() => { setMobileOpen(false); navigate("/signup"); }} style={{ width: "100%" }}>Sign up</Button>
+                <Button variant="primary" size="md" onClick={() => { setMobileOpen(false); navigate("/login"); }} style={{ width: "100%" }}>Login</Button>
+              </>
+            )}
           </div>
         </div>
       </Drawer>
 
-      <AccountPopup open={showPopup} onClose={() => setShowPopup(false)} onSignUp={() => { setShowPopup(false); navigate("/dashboard/progress"); }} onLogin={() => { setShowPopup(false); navigate("/dashboard/progress"); }} />
+      <AccountPopup open={showPopup} onClose={() => setShowPopup(false)} onSignUp={() => { setShowPopup(false); navigate("/signup"); }} onLogin={() => { setShowPopup(false); navigate("/login"); }} />
     </>
   );
 };

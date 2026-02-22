@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/Button";
 import { AccountPopup } from "@/components/ui/Modal";
 import { Icon } from "@/components/ui/Icon";
 import type { IconName } from "@/components/ui/Icon";
-import { isAuthed } from "@/lib/stubData";
 import { useNavigate } from "react-router-dom";
 
 type Tab = "account" | "goals" | "preferences" | "privacy";
@@ -101,7 +100,7 @@ export const Profile: React.FC = () => {
                   </button>
                 </div>
                 <div style={{ marginTop: "var(--space-6)" }}>
-                  <Button variant="primary" size="md" onClick={() => { if (!isAuthed) setShowPopup(true); }}>
+                  <Button variant="primary" size="md" onClick={() => { /* Save: TODO persist profile */ }}>
                     Save Changes
                   </Button>
                 </div>

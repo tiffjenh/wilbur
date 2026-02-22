@@ -4,6 +4,9 @@ import { Icon } from "../ui/Icon";
 interface TutorPanelProps {
   selectedText?: string;
   visible?: boolean;
+  /** When provided, panel open state is controlled by parent (e.g. for full-width content when closed). */
+  open?: boolean;
+  onClose?: () => void;
 }
 
 const keyTerms = ["APY", "FDIC", "debit card", "overdraft", "direct deposit"];
@@ -36,13 +39,30 @@ const ThinkingDots: React.FC = () => (
   </div>
 );
 
-const WILBUR_ANSWERS_BG = "#F5F0E5";
+const BORDER_LIGHT = "#e2dcd2";
 
-export const TutorPanel: React.FC<TutorPanelProps> = ({ selectedText, visible = true }) => {
+export const TutorPanel: React.FC<TutorPanelProps> = ({
+  selectedText,
+  visible: visibleProp = true,
+  open: controlledOpen,
+  onClose,
+}) => {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined && onClose !== undefined;
+  const isOpen = isControlled ? controlledOpen : internalOpen;
+  const handleClose = isControlled ? () => onClose?.() : () => setInternalOpen(false);
+
   const [activeTerm, setActiveTerm] = useState<string | null>(null);
   const [inputText, setInputText]   = useState("");
   const [thinking, setThinking]     = useState(false);
   const [shownTerm, setShownTerm]   = useState<string | null>(null);
+
+  // When user highlights text, open the panel so content pushes left and AI help shows (uncontrolled only; controlled parent handles opening)
+  useEffect(() => {
+    if (selectedText && selectedText.trim() && !isControlled) {
+      setInternalOpen(true);
+    }
+  }, [selectedText, isControlled]);
 
   const triggerTerm = (term: string) => {
     setThinking(true);
@@ -74,60 +94,103 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({ selectedText, visible = 
     ? (explanations[shownTerm] ?? `"${shownTerm}" — this term relates to the financial concept being discussed. Highlight it in the lesson text to see a full explanation from Wilbur.`)
     : null;
 
+  const visible = visibleProp && isOpen;
+
   return (
     <aside style={{
       width: visible ? "var(--tutor-width)" : "0px",
       minWidth: visible ? "var(--tutor-width)" : "0px",
-      borderLeft: "1px solid var(--color-border-light)",
-      backgroundColor: "var(--color-surface)",
-      overflowY: "auto", overflowX: "hidden",
+      borderLeft: visible ? `1px solid ${BORDER_LIGHT}` : "none",
+      backgroundColor: "transparent",
+      overflowY: "auto",
+      overflowX: "hidden",
       transition: "width var(--duration-slow) var(--ease-out), min-width var(--duration-slow) var(--ease-out)",
-      position: "sticky", top: "var(--nav-height)",
+      position: "sticky",
+      top: "var(--nav-height)",
       height: "calc(100vh - var(--nav-height))",
       flexShrink: 0,
+      alignSelf: "flex-start",
     }}>
       {visible && (
-        <div style={{ padding: "22px 18px 28px", animation: "tutorSlideIn var(--duration-normal) var(--ease-out)" }}>
-
-          {/* ── Header (no close button; always visible) ── */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "18px" }}>
-            <Icon name="sparkle" size={20} color="var(--color-primary)" strokeWidth={2} />
-            <span style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-md)", fontWeight: 700, color: "var(--color-text)" }}>
-              Wilbur Answers
-            </span>
+        <div style={{
+          padding: "16px 14px 20px",
+          margin: "12px 10px",
+          backgroundColor: "#fff",
+          border: `1px solid ${BORDER_LIGHT}`,
+          borderRadius: "var(--radius-md)",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+          animation: "tutorSlideIn var(--duration-normal) var(--ease-out)",
+        }}>
+          {/* Header: icon + "Wilbur Helps" + X */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                backgroundColor: "var(--color-border-light)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <Icon name="sparkle" size={16} color="var(--color-primary)" strokeWidth={2} />
+              </div>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--color-text)" }}>
+                Wilbur Helps
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Close Wilbur Helps"
+              style={{
+                padding: 4,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--color-text-muted)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="x" size={18} strokeWidth={2} />
+            </button>
           </div>
 
-          {/* ── Content ── */}
+          {/* Content */}
           {thinking ? (
-            <div style={{ marginBottom: "16px" }}>
+            <div style={{ marginBottom: "14px" }}>
               <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "4px" }}>Thinking…</div>
               <ThinkingDots />
             </div>
           ) : shownTerm ? (
             <>
-              {/* Selected term display */}
-              <div style={{ marginBottom: "16px" }}>
-                <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "7px" }}>You selected:</div>
+              <div style={{ marginBottom: "12px" }}>
+                <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "6px" }}>You selected:</div>
                 <div style={{
-                  backgroundColor: "var(--color-surface-hover)", border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-md)", padding: "9px 13px",
-                  fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)",
-                  animation: "chipIn var(--duration-fast) var(--ease-out)",
+                  backgroundColor: "transparent",
+                  border: `1px solid ${BORDER_LIGHT}`,
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px 12px",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 600,
+                  color: "var(--color-text)",
                 }}>
                   {shownTerm}
                 </div>
               </div>
-
-              {/* Explanation */}
               <div style={{
-                fontSize: "var(--text-sm)", color: "var(--color-text-secondary)",
-                lineHeight: 1.72, marginBottom: "20px", whiteSpace: "pre-line",
+                fontSize: "var(--text-sm)",
+                color: "var(--color-text-secondary)",
+                lineHeight: 1.65,
+                marginBottom: "16px",
+                whiteSpace: "pre-line",
               }}>
                 {explanation}
               </div>
-
-              {/* Bullet tips */}
-              <div style={{ marginBottom: "20px" }}>
+              <div style={{ marginBottom: "14px" }}>
                 {[
                   "Break it down into simpler parts",
                   "Look for context clues in the surrounding text",
@@ -139,58 +202,53 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({ selectedText, visible = 
                   </div>
                 ))}
               </div>
-
-              <div style={{ fontSize: "12px", color: "var(--color-text-muted)", lineHeight: 1.5, marginBottom: "14px" }}>
-                If you're still unsure, feel free to explore the related resources at the bottom of this lesson, or highlight a different term for more specific help!
+              <div style={{ fontSize: "11px", color: "var(--color-text-muted)", lineHeight: 1.5, marginBottom: "12px" }}>
+                Explore related resources at the bottom of this lesson, or highlight a different term for more help.
               </div>
             </>
           ) : (
-            <>
-              {/* Idle state — matches class.png AI Helper panel */}
-              <div style={{ marginBottom: "16px" }}>
-                <p style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.7, marginBottom: "14px" }}>
-                  Confused? Highlight any text to get an instant, simple explanation.
-                </p>
-                <div style={{
-                  backgroundColor: WILBUR_ANSWERS_BG,
-                  borderRadius: "var(--radius-full)",
-                  padding: "12px 16px",
-                  fontSize: "var(--text-xs)",
-                  color: "var(--color-text)",
-                  lineHeight: 1.6,
-                  fontFamily: "var(--font-sans)",
-                }}>
-                  <strong>Try it:</strong> Highlight terms like &quot;APY&quot; or &quot;compound interest&quot;
-                </div>
+            <div style={{ marginBottom: "14px" }}>
+              <p style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6, marginBottom: "12px" }}>
+                Confused? Highlight any text to get an instant, simple explanation.
+              </p>
+              <div style={{
+                backgroundColor: "transparent",
+                border: `1px solid ${BORDER_LIGHT}`,
+                borderRadius: "var(--radius-md)",
+                padding: "10px 12px",
+                fontSize: "var(--text-xs)",
+                color: "var(--color-text)",
+                lineHeight: 1.5,
+                fontFamily: "var(--font-sans)",
+              }}>
+                <strong>Try it:</strong> Highlight terms like &quot;APY&quot; or &quot;compound interest&quot;
               </div>
-            </>
+            </div>
           )}
 
-          {/* ── Key Terms (mock: light beige chips) ── */}
+          {/* Key Terms — light grey borders */}
           {keyTerms.length > 0 && (
-            <div style={{ marginBottom: "20px" }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--color-text)", marginBottom: "10px", fontFamily: "var(--font-sans)" }}>Key Terms:</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ marginBottom: "16px" }}>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--color-text)", marginBottom: "8px", fontFamily: "var(--font-sans)" }}>Key Terms:</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {keyTerms.map((term) => {
                   const isActive = activeTerm === term && shownTerm === term;
                   return (
                     <button
                       key={term}
                       onClick={() => handleTermClick(term)}
+                      type="button"
                       style={{
-                        display: "block", width: "100%", textAlign: "center",
-                        padding: "10px 14px",
+                        padding: "6px 10px",
                         borderRadius: "var(--radius-md)",
-                        border: "none",
-                        backgroundColor: isActive ? "rgba(28, 63, 42, 0.08)" : WILBUR_ANSWERS_BG,
-                        fontSize: "var(--text-sm)", fontWeight: isActive ? 600 : 400,
+                        border: `1px solid ${BORDER_LIGHT}`,
+                        backgroundColor: isActive ? "rgba(14, 92, 76, 0.06)" : "transparent",
+                        fontSize: "var(--text-xs)",
+                        fontWeight: isActive ? 600 : 400,
                         color: "var(--color-text)",
-                        fontFamily: "var(--font-sans)", cursor: "pointer",
-                        transition: "background-color var(--duration-fast)",
-                        boxShadow: "none",
+                        fontFamily: "var(--font-sans)",
+                        cursor: "pointer",
                       }}
-                      onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
-                      onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = WILBUR_ANSWERS_BG; }}
                     >
                       {term}
                     </button>
@@ -200,12 +258,7 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({ selectedText, visible = 
             </div>
           )}
 
-          {/* ── Tip footer ── */}
-          <div style={{ fontSize: "12px", color: "var(--color-text-muted)", lineHeight: 1.55, marginBottom: "14px" }}>
-            Tip: Highlight any term you don't understand for instant help!
-          </div>
-
-          {/* ── Ask input ── */}
+          {/* Ask input — no tip above; Ask button: black border, transparent bg */}
           <div style={{ display: "flex", gap: "6px" }}>
             <input
               type="text"
@@ -220,13 +273,19 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({ selectedText, visible = 
               }}
               placeholder="Ask a question..."
               style={{
-                flex: 1, padding: "8px 11px", border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-md)", fontSize: "var(--text-sm)",
-                fontFamily: "var(--font-sans)", outline: "none",
-                backgroundColor: "var(--color-surface)", color: "var(--color-text)",
+                flex: 1,
+                padding: "8px 10px",
+                border: `1px solid ${BORDER_LIGHT}`,
+                borderRadius: "var(--radius-md)",
+                fontSize: "var(--text-sm)",
+                fontFamily: "var(--font-sans)",
+                outline: "none",
+                backgroundColor: "transparent",
+                color: "var(--color-text)",
               }}
             />
             <button
+              type="button"
               onClick={() => {
                 if (inputText.trim()) {
                   setActiveTerm(inputText.trim());
@@ -235,9 +294,16 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({ selectedText, visible = 
                 }
               }}
               style={{
-                padding: "8px 13px", backgroundColor: "var(--color-primary)", color: "#fff",
-                border: "none", borderRadius: "var(--radius-md)", cursor: "pointer",
-                fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", fontWeight: 600, flexShrink: 0,
+                padding: "8px 14px",
+                backgroundColor: "transparent",
+                color: "var(--color-text)",
+                border: "2px solid var(--color-black)",
+                borderRadius: "var(--radius-md)",
+                cursor: "pointer",
+                fontSize: "var(--text-sm)",
+                fontFamily: "var(--font-sans)",
+                fontWeight: 600,
+                flexShrink: 0,
               }}
             >
               Ask

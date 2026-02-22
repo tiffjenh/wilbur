@@ -83,7 +83,6 @@ function FloatingTooltip({ text, position, onAsk, onDismiss }: FloatingTooltipPr
       }}
       onMouseDown={(e) => e.preventDefault()}
     >
-      <span>🦫</span>
       <span onClick={() => onAsk(text)}>Ask Wilbur</span>
       <button
         onClick={onDismiss}
@@ -142,9 +141,9 @@ function ExplainModal({ term, onClose }: ExplainModalProps) {
             borderRadius: "50%",
             backgroundColor: "#0E5C4C",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 18, flexShrink: 0,
+            fontSize: 14, fontWeight: 700, color: "#fff", flexShrink: 0,
           }}>
-            🦫
+            W
           </div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#1A1A1A" }}>Wilbur</div>
@@ -187,7 +186,7 @@ function ExplainModal({ term, onClose }: ExplainModalProps) {
           color: "#7a7a6e",
           lineHeight: 1.5,
         }}>
-          💡 This is educational information only. Wilbur does not provide financial advice or recommend specific investments.
+          This is educational information only. Wilbur does not provide financial advice or recommend specific investments.
         </div>
 
         <button

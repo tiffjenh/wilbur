@@ -142,10 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Pro Tip */}
           <div className="pro-tip" style={{ marginTop: "20px" }}>
-            <div className="pro-tip__label">
-              <Icon name="sparkle" size={16} color="var(--color-primary)" strokeWidth={2} style={{ marginRight: "6px", verticalAlign: "middle" }} />
-              Pro Tip
-            </div>
+            <div className="pro-tip__label">Pro Tip</div>
             <p className="pro-tip__text">Highlight any confusing term to get instant AI help from Wilbur!</p>
           </div>
         </div>

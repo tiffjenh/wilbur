@@ -4,7 +4,8 @@
  * a lesson roadmap using the deterministic scoring system.
  */
 import type { OnboardingData } from "./onboardingSchema";
-import { getStateProfile } from "@/content/stateData";
+import { toQuestionnaireAnswers } from "./recommendation/adapter";
+import { LESSON_CATALOG } from "@/content/lessons/lessonCatalog";
 import { generateLearningPath } from "./recommendation/generatePath";
 
 /* ── Types ──────────────────────────────────────────────── */
@@ -178,17 +179,12 @@ function generateRecommendedPath(
   focusAreas: string[],
   data: Partial<OnboardingData>,
 ): string[] {
-  // Try new scoring system first
+  // Use the new deterministic scoring engine
   try {
-    const stateCode = data.stateCode && data.stateCode !== "prefer_not" ? data.stateCode : undefined;
-    const stateProfile = stateCode ? getStateProfile(stateCode) : null;
-    const lessons = generateLearningPath({
-      ...data,
-      stateCode,
-      hasStateIncomeTax: stateProfile?.hasStateIncomeTax,
-    });
-    if (lessons.length > 0) {
-      return lessons.map((l) => l.slug);
+    const answers = toQuestionnaireAnswers(data);
+    const scored = generateLearningPath(LESSON_CATALOG, answers, { maxLessons: 8 });
+    if (scored.length > 0) {
+      return scored.map((l) => l.id);
     }
   } catch {
     // Fall back to legacy path

@@ -1,18 +1,16 @@
-import React from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { categories } from "@/lib/stubData";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Icon, IconBox } from "@/components/ui/Icon";
+import { getLessonsForLibraryCategory } from "@/lib/libraryCatalog";
+import { addLesson, loadUserAddedSync } from "@/lib/storage/userAddedLessons";
+import type { Lesson as RecLesson } from "@/lib/recommendation/types";
 
 const StatusDot: React.FC<{ status: string }> = ({ status }) => {
   if (status === "completed") return (
     <span style={{ width: "18px", height: "18px", borderRadius: "50%", backgroundColor: "var(--color-primary)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
       <Icon name="check" size={10} color="#fff" strokeWidth={2.5} />
-    </span>
-  );
-  if (status === "locked") return (
-    <span style={{ width: "18px", height: "18px", borderRadius: "50%", backgroundColor: "var(--color-locked-bg)", border: "1.5px solid var(--color-locked)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-      <Icon name="lock" size={9} color="var(--color-locked)" strokeWidth={2} />
     </span>
   );
   return (
@@ -68,9 +66,33 @@ export const Library: React.FC = () => (
   </div>
 );
 
+/** Group catalog lessons by first tag (for subheadings). */
+function groupLessonsByTag(lessons: RecLesson[]): Record<string, RecLesson[]> {
+  const grouped: Record<string, RecLesson[]> = {};
+  for (const lesson of lessons) {
+    const tag = lesson.tags.find((t) => !t.startsWith("level-")) ?? "General";
+    if (!grouped[tag]) grouped[tag] = [];
+    grouped[tag].push(lesson);
+  }
+  return grouped;
+}
+
 export const LibraryCategory: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const category = categories.find((c) => c.slug === slug);
+  const catalogLessons = slug ? getLessonsForLibraryCategory(slug) : [];
+  const [addedIds, setAddedIds] = useState<Set<string>>(() => new Set(loadUserAddedSync()));
+
+  useEffect(() => {
+    setAddedIds(new Set(loadUserAddedSync()));
+  }, [slug]);
+
+  const handleAddToLearning = useCallback((e: React.MouseEvent, lessonId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addLesson(lessonId);
+    setAddedIds((prev) => new Set(prev).add(lessonId));
+  }, []);
 
   if (!category) {
     return (
@@ -81,16 +103,21 @@ export const LibraryCategory: React.FC = () => {
     );
   }
 
-  const completedCount = category.lessons.filter((l) => l.status === "completed").length;
-  const grouped = category.lessons.reduce<Record<string, typeof category.lessons>>((acc, lesson) => {
-    if (!acc[lesson.category]) acc[lesson.category] = [];
-    acc[lesson.category].push(lesson);
-    return acc;
-  }, {});
+  const grouped = groupLessonsByTag(catalogLessons);
+
+  const sidebarLessons = catalogLessons.map((l, i) => ({
+    id: l.id,
+    slug: l.id,
+    title: l.title,
+    category: l.tags[0] ?? "General",
+    duration: `${l.estimatedTimeMin} min`,
+    status: "available" as const,
+    order: i + 1,
+  }));
 
   return (
     <div className="page-enter" style={{ display: "flex" }}>
-      <Sidebar title={category.title} lessons={category.lessons} />
+      <Sidebar title={category.title} lessons={sidebarLessons} />
       <div style={{ flex: 1, minWidth: 0, padding: "var(--space-8) var(--space-8)" }}>
         <Link to="/library" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-5)", textDecoration: "none" }}>
           <Icon name="chevron-left" size={13} strokeWidth={2} />
@@ -107,74 +134,74 @@ export const LibraryCategory: React.FC = () => {
           {category.description}
         </p>
 
-        {/* Progress */}
-        <div className="card" style={{ padding: "var(--space-4) var(--space-5)", marginBottom: "var(--space-6)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-            <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>Your Progress</span>
-            <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
-              {completedCount} of {category.lessons.length} completed
-            </span>
-          </div>
-          <div style={{ height: "6px", backgroundColor: "var(--color-border-light)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-            <div style={{
-              height: "100%",
-              width: `${(completedCount / category.lessons.length) * 100}%`,
-              backgroundColor: "var(--color-primary)",
-              borderRadius: "var(--radius-full)",
-              animation: "progressGrow 1s var(--ease-out)",
-            }} />
-          </div>
-        </div>
+        <p style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)", marginBottom: "var(--space-6)" }}>
+          All lessons in this category. Use <strong>+ Add to Learning</strong> to add any lesson to your Learning path.
+        </p>
 
-        {/* Lesson groups */}
+        {/* Lesson groups — full catalog, no locks */}
         {Object.entries(grouped).map(([groupTitle, lessons]) => (
           <div key={groupTitle} style={{ marginBottom: "var(--space-6)" }}>
             <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-base)", fontWeight: 600, marginBottom: "var(--space-3)", paddingBottom: "var(--space-2)", borderBottom: "1px solid var(--color-border-light)", color: "var(--color-text-secondary)" }}>
-              {groupTitle}
+              {groupTitle.replace(/-/g, " ")}
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {lessons.map((lesson) => (
-                <Link
-                  key={lesson.id}
-                  to={lesson.status !== "locked" ? `/lesson/${lesson.slug}` : "#"}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "13px var(--space-4)",
-                    borderRadius: "var(--radius-md)",
-                    backgroundColor: "var(--color-surface)",
-                    border: "1px solid var(--color-border-light)",
-                    textDecoration: "none",
-                    opacity: lesson.status === "locked" ? 0.55 : 1,
-                    cursor: lesson.status === "locked" ? "default" : "pointer",
-                    transition: "background-color var(--duration-fast)",
-                  }}
-                  onMouseEnter={(e) => { if (lesson.status !== "locked") (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface)"; }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <StatusDot status={lesson.status} />
-                    <div>
-                      <div style={{ fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--color-text)" }}>{lesson.title}</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--color-text-muted)", marginTop: "2px" }}>
-                        <Icon name="clock" size={11} strokeWidth={1.8} />
-                        {lesson.duration}
+              {lessons.map((lesson) => {
+                const isAdded = addedIds.has(lesson.id);
+                return (
+                  <div
+                    key={lesson.id}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "13px var(--space-4)",
+                      borderRadius: "var(--radius-md)",
+                      backgroundColor: "var(--color-surface)",
+                      border: "1px solid var(--color-border-light)",
+                      transition: "background-color var(--duration-fast)",
+                    }}
+                  >
+                    <Link
+                      to={`/lesson/${lesson.id}`}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "12px",
+                        flex: 1, minWidth: 0, textDecoration: "none", color: "inherit",
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).closest("div")!.style.backgroundColor = "var(--color-surface-hover)"; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).closest("div")!.style.backgroundColor = "var(--color-surface)"; }}
+                    >
+                      <StatusDot status="available" />
+                      <div>
+                        <div style={{ fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--color-text)" }}>{lesson.title}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--color-text-muted)", marginTop: "2px" }}>
+                          <Icon name="clock" size={11} strokeWidth={1.8} />
+                          {lesson.estimatedTimeMin} min
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  {lesson.status !== "locked" && (
-                    <button style={{
-                      padding: "5px 14px", borderRadius: "var(--radius-full)",
-                      backgroundColor: lesson.status === "completed" ? "transparent" : "var(--color-primary)",
-                      color: lesson.status === "completed" ? "var(--color-primary)" : "#fff",
-                      border: lesson.status === "completed" ? "1px solid var(--color-primary)" : "none",
-                      cursor: "pointer", fontSize: "var(--text-xs)",
-                      fontFamily: "var(--font-sans)", fontWeight: 600,
-                    }}>
-                      {lesson.status === "completed" ? "Review" : "Start"}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={(e) => handleAddToLearning(e, lesson.id)}
+                      disabled={isAdded}
+                      aria-label={isAdded ? "Added to Learning" : "Add to Learning"}
+                      style={{
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        width: 32, height: 32, borderRadius: "50%",
+                        border: isAdded ? "1.5px solid var(--color-primary)" : "1.5px solid var(--color-border)",
+                        backgroundColor: isAdded ? "rgba(14,92,76,0.08)" : "transparent",
+                        color: isAdded ? "var(--color-primary)" : "var(--color-text-muted)",
+                        cursor: isAdded ? "default" : "pointer",
+                        flexShrink: 0,
+                        transition: "border-color var(--duration-fast), background-color var(--duration-fast)",
+                      }}
+                    >
+                      {isAdded ? (
+                        <Icon name="check" size={14} color="var(--color-primary)" strokeWidth={2.5} />
+                      ) : (
+                        <Icon name="plus" size={16} color="var(--color-text-muted)" strokeWidth={2.5} />
+                      )}
                     </button>
-                  )}
-                </Link>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}

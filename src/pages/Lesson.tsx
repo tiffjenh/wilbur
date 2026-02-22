@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { lessonContents, roadmapLessons, categories, isAuthed } from "@/lib/stubData";
+import { lessonContents, roadmapLessons, categories } from "@/lib/stubData";
+import { useAuth } from "@/contexts/AuthContext";
 import { getBlockLesson } from "@/content/lessons";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TutorPanel } from "@/components/layout/TutorPanel";
@@ -9,23 +10,36 @@ import { AccountPopup } from "@/components/ui/Modal";
 import { POST_ONBOARDING_PROMPT_SIGNUP } from "@/lib/onboardingSchema";
 import { BlockRenderer } from "@/components/lessonBlocks/BlockRenderer";
 import { HighlightAI } from "@/components/highlightAI/HighlightAI";
-import { markLessonCompleted, recordFeedback } from "@/lib/recommendation/generatePath";
+import { recordFeedback } from "@/lib/recommendation/generatePath";
+import { markComplete } from "@/lib/storage/lessonProgress";
+import { shouldWarnLesson } from "@/lib/recommendation/scoring";
+import { LESSON_CATALOG_BY_ID } from "@/content/lessons/lessonCatalog";
+import { loadAnswersFromStorage, toQuestionnaireAnswers } from "@/lib/recommendation/adapter";
+import { loadFeedbackSync } from "@/lib/storage/lessonProgress";
 
 export const Lesson: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [selectedText, setSelectedText] = useState<string | undefined>();
   const [showAccountPopup, setShowAccountPopup] = useState(false);
+  const [dismissedAdvancedWarning, setDismissedAdvancedWarning] = useState(false);
+  const [tutorOpen, setTutorOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // When user highlights text, open the tutor panel so content pushes left
+  useEffect(() => {
+    if (selectedText?.trim()) setTutorOpen(true);
+  }, [selectedText]);
+
+  const { user } = useAuth();
   useEffect(() => {
     try {
-      if (!isAuthed && sessionStorage.getItem(POST_ONBOARDING_PROMPT_SIGNUP) === "1") {
+      if (!user && sessionStorage.getItem(POST_ONBOARDING_PROMPT_SIGNUP) === "1") {
         sessionStorage.removeItem(POST_ONBOARDING_PROMPT_SIGNUP);
         setShowAccountPopup(true);
       }
     } catch { /* ignore */ }
-  }, []);
+  }, [user]);
 
   // Try block-based lesson first, fall back to legacy
   const blockLesson = slug ? getBlockLesson(slug) : null;
@@ -51,15 +65,23 @@ export const Lesson: React.FC = () => {
   }, []);
 
   const handleMarkComplete = useCallback(() => {
-    if (slug) markLessonCompleted(slug);
+    if (slug) markComplete(slug);
     navigate("/learning");
   }, [slug, navigate]);
 
-  const handleFeedback = useCallback((type: "thumbs-up" | "thumbs-down" | "already-know") => {
+  const handleFeedback = useCallback((type: "more_like_this" | "not_relevant" | "already_know_this") => {
     if (slug) {
       recordFeedback({ lessonId: slug, type, timestamp: new Date().toISOString() });
     }
   }, [slug]);
+
+  const catalogLesson = slug ? LESSON_CATALOG_BY_ID[slug] : null;
+  const answers = loadAnswersFromStorage() ?? toQuestionnaireAnswers({});
+  const feedbackMap = loadFeedbackSync();
+  const showAdvancedWarning =
+    catalogLesson &&
+    shouldWarnLesson(catalogLesson, answers, feedbackMap) &&
+    !dismissedAdvancedWarning;
 
   /* ── Lesson not found ── */
   if (!blockLesson && !legacyLesson) {
@@ -91,12 +113,47 @@ export const Lesson: React.FC = () => {
           onMouseUp={blockLesson ? undefined : handleLegacyTextSelect}
           style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: "var(--space-8)" }}
         >
+          {/* Soft warning when lesson is advanced for profile */}
+          {showAdvancedWarning && (
+            <div
+              style={{
+                marginBottom: "var(--space-6)",
+                padding: "var(--space-4) var(--space-5)",
+                backgroundColor: "rgba(255,193,7,0.12)",
+                border: "1px solid rgba(255,193,7,0.4)",
+                borderRadius: "var(--radius-md)",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
+                This lesson may feel advanced. Consider taking Investing 101 first.
+              </p>
+              <button
+                type="button"
+                onClick={() => setDismissedAdvancedWarning(true)}
+                style={{
+                  marginTop: 12,
+                  padding: "8px 16px",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 600,
+                  fontFamily: "var(--font-sans)",
+                  color: "var(--color-primary)",
+                  backgroundColor: "transparent",
+                  border: "1.5px solid var(--color-primary)",
+                  borderRadius: "var(--radius-full)",
+                  cursor: "pointer",
+                }}
+              >
+                Continue anyway
+              </button>
+            </div>
+          )}
+
           {/* Feedback action row */}
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-6)", flexWrap: "wrap" }}>
             {[
-              { icon: "thumbs-up" as const, label: "more like this", type: "thumbs-up" as const },
-              { icon: "thumbs-down" as const, label: "not relevant", type: "thumbs-down" as const },
-              { icon: "brain" as const, label: "already know this", type: "already-know" as const },
+              { icon: "thumbs-up" as const, label: "more like this", type: "more_like_this" as const },
+              { icon: "thumbs-down" as const, label: "not relevant", type: "not_relevant" as const },
+              { icon: "brain" as const, label: "already know this", type: "already_know_this" as const },
             ].map(({ icon, label, type }) => (
               <button
                 key={label}
@@ -121,7 +178,7 @@ export const Lesson: React.FC = () => {
 
           {/* ── Block-based lesson ── */}
           {blockLesson && (
-            <article style={{ maxWidth: "var(--content-max)" }}>
+            <article style={{ maxWidth: tutorOpen ? "var(--content-max)" : "100%" }}>
               {/* Metadata row */}
               <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", marginBottom: "var(--space-6)", paddingBottom: "var(--space-5)", borderBottom: "1px solid var(--color-border-light)" }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
@@ -212,7 +269,7 @@ export const Lesson: React.FC = () => {
 
           {/* ── Legacy text-based lesson (fallback) ── */}
           {!blockLesson && legacyLesson && (
-            <article style={{ maxWidth: "var(--content-max)" }}>
+            <article style={{ maxWidth: tutorOpen ? "var(--content-max)" : "100%" }}>
               <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-3xl)", fontWeight: 400, marginBottom: "var(--space-3)", lineHeight: 1.2, color: "var(--color-text)" }}>
                 {lessonTitle}
               </h1>
@@ -282,8 +339,14 @@ export const Lesson: React.FC = () => {
           )}
         </div>
 
-        {/* Right TutorPanel */}
-        <TutorPanel selectedText={selectedText} visible />
+        {/* Right TutorPanel — controlled so content uses full width when panel is closed */}
+        <TutorPanel
+          key={slug}
+          selectedText={selectedText}
+          visible
+          open={tutorOpen}
+          onClose={() => setTutorOpen(false)}
+        />
       </div>
 
       {/* HighlightAI — floating tooltip + explain modal */}
@@ -292,8 +355,8 @@ export const Lesson: React.FC = () => {
       <AccountPopup
         open={showAccountPopup}
         onClose={() => setShowAccountPopup(false)}
-        onSignUp={() => { setShowAccountPopup(false); navigate("/dashboard/progress"); }}
-        onLogin={() => { setShowAccountPopup(false); navigate("/dashboard/progress"); }}
+        onSignUp={() => { setShowAccountPopup(false); navigate("/signup"); }}
+        onLogin={() => { setShowAccountPopup(false); navigate("/login"); }}
       />
     </>
   );

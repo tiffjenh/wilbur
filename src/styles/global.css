@@ -115,10 +115,10 @@ p { line-height: var(--leading-relaxed); }
 }
 .page-enter { animation: fadeInUp var(--duration-normal) var(--ease-out); }
 
-/* ── Dropdown — fade + translateY 8px → 0, 180ms ease-out ── */
+/* ── Dropdown — fade + translateY 8px → 0, 180ms ease-out; keep translateX(-50%) so centering isn’t lost during animation ── */
 @keyframes dropdownIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 /* ── Modal ── */

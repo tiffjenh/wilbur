@@ -31,7 +31,7 @@ const BLOCK_MB = 16;
 
 /* ── Hero Block ─────────────────────────────────────────── */
 
-function HeroBlockRenderer({ title, subtitle, emoji }: HeroBlock) {
+function HeroBlockRenderer({ title, subtitle }: HeroBlock) {
   return (
     <div style={{
       background: "linear-gradient(135deg, #0E5C4C 0%, #1a7a68 100%)",
@@ -41,7 +41,6 @@ function HeroBlockRenderer({ title, subtitle, emoji }: HeroBlock) {
       textAlign: "center",
       color: "#fff",
     }}>
-      {emoji && <div style={{ fontSize: 36, marginBottom: 12 }}>{emoji}</div>}
       <h2 style={{
         fontFamily: "var(--font-serif)",
         fontSize: "var(--text-2xl)",
@@ -113,10 +112,10 @@ function BulletListBlockRenderer({ heading, items, icon = "dot" }: BulletListBlo
 /* ── Callout Block ──────────────────────────────────────── */
 
 const CALLOUT_STYLES: Record<string, { bg: string; border: string; icon: string; headingColor: string }> = {
-  info:    { bg: "rgba(14,92,76,0.06)",  border: "rgba(14,92,76,0.2)",  icon: "ℹ️", headingColor: "#0E5C4C" },
-  tip:     { bg: "rgba(14,92,76,0.08)",  border: "rgba(14,92,76,0.25)", icon: "💡", headingColor: "#0E5C4C" },
-  warning: { bg: "rgba(217,83,79,0.06)", border: "rgba(217,83,79,0.2)", icon: "⚠️", headingColor: "#c0392b" },
-  source:  { bg: "#f8f6f0",             border: "#e2dcd2",             icon: "📚", headingColor: "#7a7a6e" },
+  info:    { bg: "rgba(14,92,76,0.06)",  border: "rgba(14,92,76,0.2)",  icon: "i", headingColor: "#0E5C4C" },
+  tip:     { bg: "rgba(14,92,76,0.08)",  border: "rgba(14,92,76,0.25)", icon: "Tip", headingColor: "#0E5C4C" },
+  warning: { bg: "rgba(217,83,79,0.06)", border: "rgba(217,83,79,0.2)", icon: "!", headingColor: "#c0392b" },
+  source:  { bg: "#f8f6f0",             border: "#e2dcd2",             icon: "Source", headingColor: "#7a7a6e" },
 };
 
 function CalloutBlockRenderer({ tone, heading, text }: CalloutBlock) {
@@ -165,7 +164,6 @@ function ComparisonBlockRenderer({ heading, left, right, note }: ComparisonBlock
             padding: "16px 18px",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              {side.emoji && <span style={{ fontSize: 18 }}>{side.emoji}</span>}
               <span style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", fontWeight: 700, color: "#1A1A1A" }}>
                 {side.label}
               </span>

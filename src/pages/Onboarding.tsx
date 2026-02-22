@@ -13,6 +13,11 @@ import {
   saveProfile,
   clearProfile,
 } from "@/lib/personalizationEngine";
+import { toQuestionnaireAnswers } from "@/lib/recommendation/adapter";
+import { LESSON_CATALOG } from "@/content/lessons/lessonCatalog";
+import { generateLearningPath, loadFeedbackMap } from "@/lib/recommendation/generatePath";
+import { saveAnswers, saveLearningPath, clearStoredProfile } from "@/lib/storage/userProfile";
+import { clearProgress } from "@/lib/storage/lessonProgress";
 import { OnboardingLayout } from "@/components/onboarding/OnboardingLayout";
 import { StepOne } from "@/components/onboarding/StepOne";
 import { StepTwo } from "@/components/onboarding/StepTwo";
@@ -107,9 +112,30 @@ export const Onboarding: React.FC = () => {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       saveDraft(form);
-      /* ── Run personalization engine and persist profile ── */
+
+      /* ── Legacy profile (confidence score, focus areas, etc.) ── */
       const profile = computeLearningProfile(form);
       saveProfile(profile);
+
+      /* ── New scoring engine: convert answers + generate path ── */
+      const answers = toQuestionnaireAnswers(form);
+      const feedbackMap = loadFeedbackMap();
+      const scored = generateLearningPath(LESSON_CATALOG, answers, {
+        maxLessons: 8,
+        feedbackMap,
+      });
+      const lessonIds = scored.map(l => l.id);
+
+      // Build debug object: { lessonId: { score, topReasons } }
+      const debug: Record<string, unknown> = {};
+      for (const l of scored) {
+        debug[l.id] = { score: l._score, reasons: l._reasons.slice(0, 5) };
+      }
+
+      // Save answers + path (Supabase if authed, localStorage always)
+      saveAnswers(answers);               // fire-and-forget async
+      saveLearningPath(lessonIds, debug); // fire-and-forget async
+
       navigate("/onboarding/complete");
     }
   }, [step, form, navigate]);
@@ -125,6 +151,8 @@ export const Onboarding: React.FC = () => {
   const restart = useCallback(() => {
     try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
     clearProfile();
+    clearStoredProfile();
+    clearProgress();
     setForm({});
     setStep(1);
   }, []);

@@ -30,7 +30,8 @@ export type IconName =
   | "thumbs-up"
   | "thumbs-down"
   | "brain"
-  | "money-bag";
+  | "money-bag"
+  | "plus";
 
 interface IconProps {
   name: IconName;
@@ -191,6 +192,9 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M12 4c-2 0-3.5 1.5-4 3H5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-3c-.5-1.5-2-3-4-3z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M10 5h4" stroke="currentColor" strokeLinecap="round" />
     </>
+  ),
+  "plus": (
+    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
   ),
 };
 
