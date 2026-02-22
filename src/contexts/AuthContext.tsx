@@ -6,7 +6,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
-import { saveUserProfileToSupabase, savePathToSupabase } from "@/lib/supabase";
+import { saveUserProfileToSupabase, savePathToSupabase, hydrateLocalStorageFromSupabase } from "@/lib/supabase";
 import { loadAnswersSync } from "@/lib/storage/userProfile";
 import { loadCompletedSync, loadFeedbackSync } from "@/lib/storage/lessonProgress";
 import { saveFeedbackToSupabase } from "@/lib/supabase";
@@ -84,7 +84,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        migrateLocalStorageToSupabase(s.user.id).catch(() => {});
+        migrateLocalStorageToSupabase(s.user.id)
+          .then(() => hydrateLocalStorageFromSupabase(s.user!.id))
+          .catch(() => {});
       }
       setLoading(false);
     });
@@ -93,7 +95,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        migrateLocalStorageToSupabase(s.user.id).catch(() => {});
+        migrateLocalStorageToSupabase(s.user.id)
+          .then(() => hydrateLocalStorageFromSupabase(s.user!.id))
+          .catch(() => {});
       }
     });
 

@@ -92,12 +92,12 @@ create table if not exists public.user_paths (
 create index if not exists user_paths_user_id_idx on public.user_paths(user_id);
 
 -- ──────────────────────────────────────────────────────────────
--- 4) Lesson progress
+-- 4) Lesson progress (lesson_id = catalog slug, no FK so app works without populating lessons table)
 -- ──────────────────────────────────────────────────────────────
 create table if not exists public.lesson_progress (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  lesson_id text not null references public.lessons(id) on delete cascade,
+  lesson_id text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
@@ -113,12 +113,12 @@ create or replace trigger lesson_progress_updated_at
   for each row execute function public.handle_updated_at();
 
 -- ──────────────────────────────────────────────────────────────
--- 5) Feedback on lessons (thumbs up/down/brain)
+-- 5) Feedback on lessons (lesson_id = catalog slug, no FK)
 -- ──────────────────────────────────────────────────────────────
 create table if not exists public.lesson_feedback (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  lesson_id text not null references public.lessons(id) on delete cascade,
+  lesson_id text not null,
   created_at timestamptz not null default now(),
 
   feedback text not null -- more_like_this|not_relevant|already_know_this

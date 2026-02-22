@@ -4,8 +4,16 @@
  */
 import { supabase } from "./supabaseClient";
 import type { QuestionnaireAnswers, LessonFeedback } from "./recommendation/types";
+import { fromQuestionnaireAnswers } from "./recommendation/adapter";
 
 export { supabase };
+
+const LS_ANSWERS_KEY = "wilbur_questionnaire_answers";
+const LS_ONBOARDING_KEY = "wilbur_onboarding_profile";
+const LS_PATH_KEY = "wilbur_learning_path";
+const LS_COMPLETED_KEY = "wilbur_completed_lessons_v2";
+const LS_FEEDBACK_KEY = "wilbur_lesson_feedback_v2";
+const LS_USER_ADDED_KEY = "wilbur_user_added_lessons_v1";
 
 /* ── Database row types (mirror schema.sql) ─────────────── */
 
@@ -242,4 +250,40 @@ export async function loadUserAddedLessonsFromSupabase(userId: string): Promise<
     .select("lesson_id")
     .eq("user_id", userId);
   return (data ?? []).map((r: { lesson_id: string }) => r.lesson_id);
+}
+
+/**
+ * Hydrate localStorage from Supabase so the app sees the user's profile, path, progress, feedback, and saved lessons.
+ * Call this when the user is logged in (e.g. after session restore or migrate) so progress is remembered across devices.
+ */
+export async function hydrateLocalStorageFromSupabase(userId: string): Promise<void> {
+  if (!supabase) return;
+  try {
+    const [profile, path, completed, feedbackMap, userAdded] = await Promise.all([
+      loadUserProfileFromSupabase(userId),
+      loadPathFromSupabase(userId),
+      loadCompletedLessonsFromSupabase(userId),
+      loadFeedbackMapFromSupabase(userId),
+      loadUserAddedLessonsFromSupabase(userId),
+    ]);
+    if (profile) {
+      localStorage.setItem(LS_ANSWERS_KEY, JSON.stringify(profile));
+      const onboarding = fromQuestionnaireAnswers(profile);
+      localStorage.setItem(LS_ONBOARDING_KEY, JSON.stringify(onboarding));
+    }
+    if (path && path.length > 0) {
+      localStorage.setItem(LS_PATH_KEY, JSON.stringify(path));
+    }
+    if (completed.length > 0) {
+      localStorage.setItem(LS_COMPLETED_KEY, JSON.stringify(completed));
+    }
+    if (Object.keys(feedbackMap).length > 0) {
+      localStorage.setItem(LS_FEEDBACK_KEY, JSON.stringify(feedbackMap));
+    }
+    if (userAdded.length > 0) {
+      localStorage.setItem(LS_USER_ADDED_KEY, JSON.stringify(userAdded));
+    }
+  } catch {
+    // non-fatal
+  }
 }

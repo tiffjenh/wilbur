@@ -25,7 +25,10 @@ export const Login: React.FC = () => {
     const { error: err } = await signInWithOtp(email.trim());
     setLoading(false);
     if (err) {
-      setError(err.message);
+      const isNotConfigured = err.message === "Supabase not configured";
+      setError(isNotConfigured
+        ? "Log in isn’t configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local (see docs/SUPABASE_SETUP.md)."
+        : err.message);
       return;
     }
     setSent(true);
