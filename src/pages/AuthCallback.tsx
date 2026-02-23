@@ -14,7 +14,7 @@ export const AuthCallback: React.FC = () => {
     const client = supabase;
     if (!client) {
       setStatus("error");
-      navigate("/login", { replace: true });
+      navigate("/auth?mode=login", { replace: true });
       return;
     }
 
@@ -31,23 +31,23 @@ export const AuthCallback: React.FC = () => {
         });
         if (verifyError) {
           setStatus("error");
-          navigate("/login", { replace: true });
+          navigate("/auth?mode=login", { replace: true });
           return;
         }
         setStatus("done");
-        navigate("/login?confirmed=1", { replace: true });
+        navigate("/auth?mode=login&confirmed=1", { replace: true });
         return;
       }
 
       const { data: { session }, error } = await client.auth.getSession();
       if (!error && session?.user) {
         setStatus("done");
-        navigate("/login?confirmed=1", { replace: true });
+        navigate("/auth?mode=login&confirmed=1", { replace: true });
         return;
       }
 
       setStatus("error");
-      navigate("/login", { replace: true });
+      navigate("/auth?mode=login", { replace: true });
     };
 
     run();

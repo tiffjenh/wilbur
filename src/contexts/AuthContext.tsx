@@ -21,7 +21,7 @@ interface AuthContextValue {
   loading: boolean;
   signInWithOtp: (email: string) => Promise<{ error: Error | null }>;
   signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null; emailNotConfirmed?: boolean }>;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null; requiresConfirmation?: boolean }>;
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: Error | null; requiresConfirmation?: boolean }>;
   resendVerificationEmail: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -126,6 +126,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
     });
     if (!error) return { error: null };
+    if (Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV)) {
+      console.warn("[Auth] signInWithPassword Supabase error:", { message: error.message, name: error.name, status: (error as { status?: number }).status });
+    }
     const msg = error.message.toLowerCase();
     const emailNotConfirmed =
       msg.includes("email not confirmed") ||
@@ -135,14 +138,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: new Error(error.message), emailNotConfirmed };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, name: string): Promise<{ error: Error | null; requiresConfirmation?: boolean }> => {
+  const signUp = useCallback(async (email: string, password: string, firstName: string, lastName: string): Promise<{ error: Error | null; requiresConfirmation?: boolean }> => {
     if (!supabase) return { error: new Error("Supabase not configured") };
     const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const first = firstName.trim();
+    const last = lastName.trim();
+    const fullName = [first, last].filter(Boolean).join(" ") || undefined;
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
-        data: { full_name: name.trim() || undefined },
+        data: {
+          first_name: first || undefined,
+          last_name: last || undefined,
+          full_name: fullName,
+        },
         emailRedirectTo: `${origin}/auth/callback`,
       },
     });

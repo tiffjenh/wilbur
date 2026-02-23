@@ -11,12 +11,16 @@ export const Signup: React.FC = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
+
+  const passwordsMatch = password === confirmPassword;
+  const canSubmit = password.length >= 8 && passwordsMatch && !!email.trim() && !loading;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,8 +38,15 @@ export const Signup: React.FC = () => {
       setError("Use at least 8 characters for your password.");
       return;
     }
+    if (password !== confirmPassword) {
+      setError("Passwords don't match.");
+      return;
+    }
     setLoading(true);
-    const { error: err, requiresConfirmation } = await signUp(email.trim(), password, name.trim());
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    const first = parts[0] ?? "";
+    const last = parts.slice(1).join(" ") ?? "";
+    const { error: err, requiresConfirmation } = await signUp(email.trim(), password, first, last);
     setLoading(false);
     if (err) {
       const isNotConfigured = err.message.includes("Supabase not configured");
@@ -45,6 +56,8 @@ export const Signup: React.FC = () => {
       return;
     }
     if (requiresConfirmation) {
+      setPassword("");
+      setConfirmPassword("");
       setNeedsConfirmation(true);
       return;
     }
@@ -165,15 +178,44 @@ export const Signup: React.FC = () => {
               <Icon name={showPassword ? "eye-off" : "eye"} size={20} strokeWidth={1.8} />
             </button>
           </div>
-          <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: 16 }}>
+          <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: password ? 8 : 16 }}>
             8+ characters recommended.
           </p>
+          {password ? (
+            <>
+              <label htmlFor="signup-confirm-password" style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: 8 }}>
+                Confirm Password
+              </label>
+              <input
+                id="signup-confirm-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "12px 14px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-md)",
+                  fontSize: "var(--text-base)",
+                  marginBottom: 16,
+                }}
+              />
+            </>
+          ) : null}
+          {confirmPassword && !passwordsMatch && (
+            <p style={{ color: "var(--color-error, #c0392b)", fontSize: "var(--text-sm)", marginBottom: 12 }}>
+              Passwords don't match.
+            </p>
+          )}
           {error && (
             <p style={{ color: "var(--color-error, #c0392b)", fontSize: "var(--text-sm)", marginBottom: 12 }}>
               {error}
             </p>
           )}
-          <Button type="submit" variant="primary" style={{ width: "100%" }} disabled={loading}>
+          <Button type="submit" variant="primary" style={{ width: "100%" }} disabled={!canSubmit}>
             {loading ? "Creating account…" : "Sign up"}
           </Button>
         </form>

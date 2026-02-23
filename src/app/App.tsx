@@ -13,8 +13,7 @@ import { Settings } from "@/pages/Settings";
 import { Lesson } from "@/pages/Lesson";
 import { Onboarding } from "@/pages/Onboarding";
 import { OnboardingComplete } from "@/pages/OnboardingComplete";
-import { Login } from "@/pages/Login";
-import { Signup } from "@/pages/Signup";
+import { Auth } from "@/pages/Auth";
 import { AuthCallback } from "@/pages/AuthCallback";
 import { Logout } from "@/pages/Logout";
 
@@ -25,8 +24,9 @@ const App: React.FC = () => {
         <Route path="/" element={<Home />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/onboarding/complete" element={<OnboardingComplete />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/login" element={<Navigate to="/auth?mode=login" replace />} />
+        <Route path="/signup" element={<Navigate to="/auth?mode=signup" replace />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/logout" element={<Logout />} />
         <Route path="/dashboard/progress" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

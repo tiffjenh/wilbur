@@ -438,11 +438,11 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
 
   const handleLogin = useCallback(() => {
     if (isAuthed) navigate("/dashboard/progress");
-    else navigate("/login");
+    else navigate("/auth?mode=login");
   }, [navigate, isAuthed]);
   const handleSignUp = useCallback(() => {
     if (isAuthed) navigate("/dashboard/progress");
-    else navigate("/signup");
+    else navigate("/auth?mode=signup");
   }, [navigate, isAuthed]);
 
   /* Dashboard click: if not authed, show account modal (create account to track roadmap); else go to href */
@@ -562,15 +562,15 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
               </>
             ) : (
               <>
-                <Button variant="outlineBlack" size="md" onClick={() => { setMobileOpen(false); navigate("/signup"); }} style={{ width: "100%" }}>Sign up</Button>
-                <Button variant="primary" size="md" onClick={() => { setMobileOpen(false); navigate("/login"); }} style={{ width: "100%" }}>Login</Button>
+                <Button variant="outlineBlack" size="md" onClick={() => { setMobileOpen(false); navigate("/auth?mode=signup"); }} style={{ width: "100%" }}>Sign up</Button>
+                <Button variant="primary" size="md" onClick={() => { setMobileOpen(false); navigate("/auth?mode=login"); }} style={{ width: "100%" }}>Login</Button>
               </>
             )}
           </div>
         </div>
       </Drawer>
 
-      <AccountPopup open={showPopup} onClose={() => setShowPopup(false)} onSignUp={() => { setShowPopup(false); navigate("/signup"); }} onLogin={() => { setShowPopup(false); navigate("/login"); }} />
+      <AccountPopup open={showPopup} onClose={() => setShowPopup(false)} onSignUp={() => { setShowPopup(false); navigate("/auth?mode=signup"); }} onLogin={() => { setShowPopup(false); navigate("/auth?mode=login"); }} />
     </>
   );
 };

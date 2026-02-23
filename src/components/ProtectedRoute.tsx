@@ -1,6 +1,6 @@
 /**
  * Protects routes that require authentication (e.g. Dashboard, Profile).
- * Redirects to /login if not authenticated.
+ * Redirects to /auth?mode=login if not authenticated.
  */
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
@@ -23,7 +23,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/auth?mode=login" state={{ from: location }} replace />;
   }
 
   return <>{children}</>;

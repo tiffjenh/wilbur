@@ -364,8 +364,8 @@ export const Lesson: React.FC = () => {
       <AccountPopup
         open={showAccountPopup}
         onClose={() => setShowAccountPopup(false)}
-        onSignUp={() => { setShowAccountPopup(false); navigate("/signup"); }}
-        onLogin={() => { setShowAccountPopup(false); navigate("/login"); }}
+        onSignUp={() => { setShowAccountPopup(false); navigate("/auth?mode=signup"); }}
+        onLogin={() => { setShowAccountPopup(false); navigate("/auth?mode=login"); }}
       />
     </>
   );

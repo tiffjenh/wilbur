@@ -148,8 +148,8 @@ export const Dashboard: React.FC = () => {
       <AccountPopup
         open={showPopup}
         onClose={() => setShowPopup(false)}
-        onSignUp={() => { setShowPopup(false); navigate("/signup"); }}
-        onLogin={() => { setShowPopup(false); navigate("/login"); }}
+        onSignUp={() => { setShowPopup(false); navigate("/auth?mode=signup"); }}
+        onLogin={() => { setShowPopup(false); navigate("/auth?mode=login"); }}
       />
     </>
   );
