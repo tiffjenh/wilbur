@@ -132,7 +132,7 @@ async function withInflight<T>(key: string, fn: () => Promise<T>): Promise<T> {
 let openaiRunning = 0;
 const openaiQueue: (() => void)[] = [];
 
-function acquireOpenAIAsync(requestId: string): Promise<boolean> {
+function acquireOpenAIAsync(_requestId: string): Promise<boolean> {
   if (openaiRunning < MAX_CONCURRENT_OPENAI) {
     openaiRunning++;
     return Promise.resolve(true);
@@ -225,6 +225,7 @@ export default async function handler(
       selectedText?: string;
       question?: string;
       history?: { role: string; content: string }[];
+      stateCode?: string;
     };
     headers?: { [k: string]: string | string[] | undefined };
   },
@@ -451,7 +452,7 @@ export default async function handler(
 
   const maxTokens = mode === "highlight" ? MAX_TOKENS_HIGHLIGHT : MAX_TOKENS_CHAT;
 
-  const callOpenAI = async (attempt: number): Promise<Response> => {
+  const callOpenAI = async (_attempt: number): Promise<Response> => {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -473,12 +474,10 @@ export default async function handler(
     citations: { title: string; url: string; domain: string; tier: number }[];
   }> => {
     let lastResponse: Response | null = null;
-    let lastText = "";
     for (let attempt = 0; attempt <= MAX_429_RETRIES; attempt++) {
       const response = await callOpenAI(attempt);
       lastResponse = response;
       const responseText = await response.text();
-      lastText = responseText;
 
       logRateLimitHeaders(requestId, response, response.status);
 

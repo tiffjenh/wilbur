@@ -12,12 +12,12 @@ describe("Wilbur API glossary fast-path", () => {
   beforeEach(() => {
     originalFetch = globalThis.fetch;
     fetchMock = vi.fn(() => Promise.reject(new Error("fetch should not be called for glossary hit")));
-    (globalThis as unknown as { fetch: typeof fetch }).fetch = fetchMock;
+    (globalThis as { fetch: unknown }).fetch = fetchMock;
     process.env.OPENAI_API_KEY = "sk-test-dummy";
   });
 
   afterEach(() => {
-    (globalThis as unknown as { fetch: typeof fetch }).fetch = originalFetch;
+    (globalThis as { fetch: unknown }).fetch = originalFetch;
     delete process.env.OPENAI_API_KEY;
     vi.restoreAllMocks();
   });

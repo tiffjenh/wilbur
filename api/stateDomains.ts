@@ -17,11 +17,6 @@ export const STATE_TAX_DOMAINS: Record<string, string[]> = {
   WV: ["tax.wv.gov"], WI: ["revenue.wi.gov"], WY: ["revenue.wyo.gov"], DC: ["otr.cfo.dc.gov"],
 };
 
-function normalize(host: string): string {
-  const lower = host.toLowerCase().replace(/^www\./, "");
-  return lower;
-}
-
 export function getStateDomains(stateCode: string): string[] {
   const code = stateCode?.toUpperCase().trim();
   if (!code || code === "PREFER_NOT") return [];

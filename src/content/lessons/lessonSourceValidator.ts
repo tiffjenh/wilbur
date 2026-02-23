@@ -28,7 +28,7 @@ export function validateLessonSources(
   const warnings: string[] = [];
   const stateDomains = stateCode ? getStateDomains(stateCode) : [];
   const urls = lesson.sources.map((s) => s.url);
-  const { approved, rejected } = enforceApprovedSources(urls, stateCode);
+  const { rejected } = enforceApprovedSources(urls, stateCode);
 
   if (rejected.length > 0) {
     errors.push(`Lesson "${lesson.slug}": non-approved source URLs: ${rejected.join(", ")}`);

@@ -66,10 +66,6 @@ export const Lesson: React.FC = () => {
       : roadmapLessons
     : roadmapLessons;
 
-  const handleTextSelect = useCallback((text: string) => {
-    setSelectedText(text);
-  }, []);
-
   const handleMarkComplete = useCallback(() => {
     if (slug) markComplete(slug);
     navigate("/learning");

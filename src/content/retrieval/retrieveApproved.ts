@@ -129,7 +129,7 @@ export function retrieveApproved(options: RetrieveApprovedOptions): RetrieveAppr
   } = options;
 
   const stateDomains = userState ? getStateDomains(userState) : [];
-  const tier1Domains = getTier1DomainsForState(userState);
+  getTier1DomainsForState(userState); // may be used for future tier filtering
   const isTaxLegal = isTaxOrLegalQuery(query);
 
   const excerpts: RetrievalExcerpt[] = [];
