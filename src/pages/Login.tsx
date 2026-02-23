@@ -51,6 +51,10 @@ export const Login: React.FC = () => {
       }
       return;
     }
+    if (!supabase) {
+      navigate("/", { replace: true });
+      return;
+    }
     const { data: { user: u } } = await supabase.auth.getUser();
     if (u) {
       const profile = await loadUserProfileFromSupabase(u.id);

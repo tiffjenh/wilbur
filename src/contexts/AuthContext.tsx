@@ -20,8 +20,9 @@ interface AuthContextValue {
   session: Session | null;
   loading: boolean;
   signInWithOtp: (email: string) => Promise<{ error: Error | null }>;
-  signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null; emailNotConfirmed?: boolean }>;
+  signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null; requiresConfirmation?: boolean }>;
+  resendVerificationEmail: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
