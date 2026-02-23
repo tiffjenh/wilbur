@@ -125,13 +125,17 @@ export type LessonBlock =
   | KeyTermsBlock
   | ToggleComparisonBlock;
 
-/* ── Source / citation ──────────────────────────────────── */
+/* ── Source / citation (aligned with approvedSources + CitationsList) ─── */
 
 export interface LessonSource {
   name: string;
   url: string;
   type: "government" | "regulator" | "reputable-explainer";
   lastReviewed?: string;
+  /** 1 = primary (gov/regulator), 2 = secondary (e.g. Investopedia). From approvedSources. */
+  tier?: 1 | 2;
+  /** Optional: which blocks/sections use this source */
+  usedIn?: string[];
 }
 
 /* ── Full block lesson ──────────────────────────────────── */

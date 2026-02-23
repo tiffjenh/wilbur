@@ -22,6 +22,31 @@ function savingsToTier(s: QuestionnaireAnswers["savings"]): "none" | "low" | "mi
   return "high";
 }
 
+/** Learning tier derived from answers — used for path diversity and stability penalty. */
+export type LearningTier = "beginner" | "intermediate" | "advanced";
+
+export function getLearningTier(a: QuestionnaireAnswers): LearningTier {
+  const debtTier = debtToTier(a.debt);
+  const invested = a.investedBefore;
+  const conf = a.confidence;
+
+  if (
+    (invested === "regularly" || invested === "a-little") &&
+    conf >= 4 &&
+    debtTier === "none"
+  ) {
+    return "advanced";
+  }
+  if (
+    invested === "regularly" ||
+    (invested === "a-little" && conf >= 3) ||
+    (conf >= 4 && debtTier === "none")
+  ) {
+    return "intermediate";
+  }
+  return "beginner";
+}
+
 function hasTag(lesson: Lesson, tag: LessonTag) {
   return lesson.tags.includes(tag);
 }
@@ -76,8 +101,25 @@ export function scoreLesson(
 ): ScoreResult {
   const res: ScoreResult = { score: 0, reasons: [] };
 
-  // Base priorities by topic (stability first)
-  if (matchesAny(lesson, ["money-basics", "budgeting", "emergency-fund"])) add(res, 15, "stability base");
+  const debtTierForTier = debtToTier(a.debt);
+  const learningTier = getLearningTier(a);
+  const wantsStability =
+    debtTierForTier !== "none" ||
+    a.confidence <= 2 ||
+    a.stressors.includes("budgeting") ||
+    a.goalsThisYear.some((g) => g === "emergency_fund" || g === "pay_off_debt") ||
+    a.goals3to5.some((g) => g === "emergency_fund" || g === "pay_off_debt");
+
+  // Base priorities by topic (stability first) — reduce stability base for advanced/intermediate when they don't need it
+  if (matchesAny(lesson, ["money-basics", "budgeting", "emergency-fund"])) {
+    if (learningTier === "advanced" && !wantsStability) {
+      add(res, -12, "advanced: deprioritize stability");
+    } else if (learningTier === "intermediate" && !wantsStability) {
+      add(res, 2, "intermediate: light stability");
+    } else {
+      add(res, 15, "stability base");
+    }
+  }
   if (matchesAny(lesson, ["debt", "credit", "student-loans"])) add(res, 12, "risk/avoid mistakes base");
   if (matchesAny(lesson, ["investing-basics", "retirement", "benefits"])) add(res, 10, "growth base");
   if (matchesAny(lesson, ["taxes-federal", "taxes-state"])) add(res, 8, "tax base");
@@ -129,7 +171,7 @@ export function scoreLesson(
   }
 
   // Savings / debt tiers
-  const debtTier = debtToTier(a.debt);
+  const debtTier = debtTierForTier;
   const savingsTier = savingsToTier(a.savings);
 
   if (savingsTier === "none") {

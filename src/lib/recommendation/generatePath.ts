@@ -1,5 +1,5 @@
 import type { Lesson, QuestionnaireAnswers, LessonFeedback, ScoredLesson } from "./types";
-import { scoreLesson } from "./scoring";
+import { scoreLesson, getLearningTier, type LearningTier } from "./scoring";
 
 export type GenerateOpts = {
   maxLessons?: number; // default 8
@@ -7,19 +7,49 @@ export type GenerateOpts = {
   feedbackMap?: Record<string, LessonFeedback | undefined>;
 };
 
-function ensureDiversity(sorted: Lesson[], _a: QuestionnaireAnswers): Lesson[] {
-  // Ensure at least one "stability", one "risk", one "growth"
-  const buckets = {
-    stability: (l: Lesson) => l.tags.includes("budgeting") || l.tags.includes("emergency-fund") || l.tags.includes("money-basics"),
-    risk: (l: Lesson) => l.tags.includes("debt") || l.tags.includes("credit") || l.tags.includes("student-loans"),
-    growth: (l: Lesson) => l.tags.includes("investing-basics") || l.tags.includes("retirement") || l.tags.includes("benefits"),
-  };
+function ensureDiversity(sorted: Lesson[], a: QuestionnaireAnswers): Lesson[] {
+  const tier: LearningTier = getLearningTier(a);
+  const debtTier = a.debt === "0" ? "none" : a.debt === "<1k" || a.debt === "1k-10k" ? "low" : "mid";
+  const wantsHome = a.goals3to5.includes("home_down_payment");
+
+  const buckets: { include: boolean; pred: (l: Lesson) => boolean }[] = [
+    {
+      include: tier === "beginner" || tier === "intermediate",
+      pred: (l) =>
+        l.tags.includes("budgeting") ||
+        l.tags.includes("emergency-fund") ||
+        l.tags.includes("money-basics"),
+    },
+    {
+      include: debtTier !== "none",
+      pred: (l) =>
+        l.tags.includes("debt") ||
+        l.tags.includes("credit") ||
+        l.tags.includes("student-loans"),
+    },
+    // Goal-specific: ensure at least one home-buying lesson when user has that goal
+    {
+      include: wantsHome,
+      pred: (l) => l.tags.includes("home-buying"),
+    },
+    {
+      include: true,
+      pred: (l) =>
+        l.tags.includes("investing-basics") ||
+        l.tags.includes("retirement") ||
+        l.tags.includes("benefits") ||
+        l.tags.includes("advanced-investing") ||
+        l.tags.includes("home-buying") ||
+        l.tags.includes("real-estate"),
+    },
+  ];
 
   const picked: Lesson[] = [];
   const used = new Set<string>();
 
-  for (const key of Object.keys(buckets) as (keyof typeof buckets)[]) {
-    const found = sorted.find(l => !used.has(l.id) && buckets[key](l));
+  for (const { include, pred } of buckets) {
+    if (!include) continue;
+    const found = sorted.find((l) => !used.has(l.id) && pred(l));
     if (found) {
       picked.push(found);
       used.add(found.id);

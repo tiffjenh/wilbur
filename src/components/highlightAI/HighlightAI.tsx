@@ -1,13 +1,12 @@
 /**
  * Highlight-to-explain: selection inside lesson content triggers AI Helper.
- * - selectionchange (debounced 250ms) + mouseup for stable selection
- * - Only inside container; selected text 3–150 chars (over 150: show "Select a shorter phrase")
- * - Calls onAsk(text) to open panel and request explanation (no click required)
+ * - Only on mouseup (not selectionchange) to avoid multiple triggers.
+ * - Only inside container; selected text 3–120 chars (over 120: show "Select a shorter phrase").
+ * - Duplicate selection (same text) is ignored. Calls onAsk(text) to open panel and request explanation.
  */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
-const MAX_SELECTION_LENGTH = 150;
-const DEBOUNCE_MS = 250;
+const MAX_SELECTION_LENGTH = 120;
 const isDev = Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
 
 interface FloatingTooltipProps {
@@ -66,17 +65,16 @@ interface HighlightAIProps {
 
 export function HighlightAI({ containerRef, onAsk }: HighlightAIProps) {
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number; tooLong: boolean } | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSentRef = useRef<string>("");
 
-  const checkSelection = useCallback(() => {
+  const handleHighlight = useCallback(() => {
     const sel = window.getSelection();
     const text = sel?.toString().trim() ?? "";
     const container = containerRef.current;
     if (!container) return;
 
     if (isDev) {
-      console.log("[HighlightAI] selectionchange/mouseup", { textLen: text.length, hasRange: !!(sel && sel.rangeCount > 0) });
+      console.log("[HighlightAI] mouseup", { textLen: text.length, hasRange: !!(sel && sel.rangeCount > 0) });
     }
 
     if (!text || text.length < 3) {
@@ -107,36 +105,18 @@ export function HighlightAI({ containerRef, onAsk }: HighlightAIProps) {
       y: rect.top,
       tooLong,
     });
-
+    // Ignore duplicate selection; only call onAsk when text changed
     if (!tooLong && onAsk && text !== lastSentRef.current) {
       lastSentRef.current = text;
-      if (isDev) console.log("[HighlightAI] calling onAsk", { len: text.length });
       onAsk(text);
     }
   }, [containerRef, onAsk]);
 
-  const handleSelectionChange = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      debounceRef.current = null;
-      checkSelection();
-    }, DEBOUNCE_MS);
-  }, [checkSelection]);
-
-  const handleMouseUp = useCallback(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
-    checkSelection();
-  }, [checkSelection]);
-
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    document.addEventListener("selectionchange", handleSelectionChange);
-    el.addEventListener("mouseup", handleMouseUp);
-    el.addEventListener("touchend", handleMouseUp, { passive: true });
+    el.addEventListener("mouseup", handleHighlight);
+    el.addEventListener("touchend", handleHighlight, { passive: true });
     const clickOutside = () => {
       if (!window.getSelection()?.toString()) {
         setTooltip(null);
@@ -144,23 +124,24 @@ export function HighlightAI({ containerRef, onAsk }: HighlightAIProps) {
     };
     document.addEventListener("mousedown", clickOutside);
     return () => {
-      document.removeEventListener("selectionchange", handleSelectionChange);
-      el.removeEventListener("mouseup", handleMouseUp);
-      el.removeEventListener("touchend", handleMouseUp);
+      el.removeEventListener("mouseup", handleHighlight);
+      el.removeEventListener("touchend", handleHighlight);
       document.removeEventListener("mousedown", clickOutside);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [containerRef, handleSelectionChange, handleMouseUp]);
+  }, [containerRef, handleHighlight]);
 
-  const handleAsk = (text: string) => {
-    setTooltip(null);
-    window.getSelection()?.removeAllRanges();
-    if (text.length <= MAX_SELECTION_LENGTH && onAsk) onAsk(text);
-  };
+  const handleAsk = useCallback(
+    (text: string) => {
+      setTooltip(null);
+      window.getSelection()?.removeAllRanges();
+      if (text.length <= MAX_SELECTION_LENGTH && onAsk) onAsk(text);
+    },
+    [onAsk]
+  );
 
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     setTooltip(null);
-  };
+  }, []);
 
   return (
     <>

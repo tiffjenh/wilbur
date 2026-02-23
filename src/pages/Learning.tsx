@@ -108,7 +108,7 @@ export const Learning: React.FC = () => {
                       cursor: "pointer",
                     }}
                   >
-                    {debugOpen ? "▼" : "▶"} Debug: answers, tags, top 10 scores
+                    {debugOpen ? "▼" : "▶"} Debug: answers, tier, path, top 10 scores
                   </button>
                   {debugOpen && (
                     <div style={{
@@ -122,6 +122,24 @@ export const Learning: React.FC = () => {
                       overflow: "auto",
                       maxHeight: 360,
                     }}>
+                      <div style={{ marginBottom: 8 }}>
+                        <strong>Tier:</strong> {debugInfo.tier}
+                      </div>
+                      <div style={{ marginBottom: 8 }}>
+                        <strong>Path lessons (why selected):</strong>
+                        <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                          {debugInfo.pathLessons.map((p) => (
+                            <li key={p.id} style={{ marginBottom: 4 }}>
+                              {p.id} — {p.title}
+                              {p.reasons.length > 0 && (
+                                <div style={{ marginLeft: 8, color: "#6b6b5c" }}>
+                                  {p.reasons.slice(0, 2).join("; ")}
+                                </div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                       <div style={{ marginBottom: 8 }}>
                         <strong>Raw answers:</strong>
                         <pre style={{ margin: "4px 0 0", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>

@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Icon } from "../ui/Icon";
+import { CitationsList } from "../ui/CitationsList";
 
 const WILBUR_API = "/api/wilbur";
 const RATE_LIMIT_MS = 2000;
-const MAX_HIGHLIGHT_CHARS = 150;
+const HIGHLIGHT_DEBOUNCE_MS = 500;
+const HIGHLIGHT_COOLDOWN_MS = 1000;
+const MAX_HIGHLIGHT_CHARS = 120;
 const MAX_QUESTION_CHARS = 300;
 const MAX_HISTORY = 10;
 const isDev = Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
@@ -37,6 +40,13 @@ const ThinkingDots: React.FC = () => (
 
 type Message = { role: "user" | "assistant"; content: string };
 
+export interface WilburCitation {
+  title: string;
+  url: string;
+  domain: string;
+  tier: 1 | 2;
+}
+
 export const TutorPanel: React.FC<TutorPanelProps> = ({
   selectedText,
   lessonId,
@@ -56,9 +66,13 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
   const [aiError, setAiError] = useState<string | null>(null);
   const [highlightPrompt, setHighlightPrompt] = useState<string | null>(null);
   const [highlightAnswer, setHighlightAnswer] = useState<string | null>(null);
+  const [citations, setCitations] = useState<WilburCitation[]>([]);
   const [tooLongMessage, setTooLongMessage] = useState(false);
   const lastRequestRef = useRef<number>(0);
   const abortRef = useRef<AbortController | null>(null);
+  const highlightDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastHighlightedRef = useRef<string>("");
+  const lastHighlightTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (selectedText && selectedText.trim() && !isControlled) setInternalOpen(true);
@@ -73,11 +87,11 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
       abortRef.current = controller;
 
       const now = Date.now();
-      if (now - lastRequestRef.current < RATE_LIMIT_MS) {
+      if (mode === "chat" && now - lastRequestRef.current < RATE_LIMIT_MS) {
         setAiError("Please wait a moment before asking again.");
         return;
       }
-      lastRequestRef.current = now;
+      if (mode === "chat") lastRequestRef.current = now;
       setAiError(null);
       setThinking(true);
       setTooLongMessage(false);
@@ -120,18 +134,38 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
 
         if (!res.ok) {
           let msg = typeof data?.error === "string" ? data.error : "We couldn't get an answer right now. Please try again.";
-          if (res.status === 404 && isDev) {
-            msg = "Local AI API not found. Use `npx vercel dev` (Vite alone does not run /api/wilbur).";
+          const code = typeof data?.code === "string" ? data.code : "";
+          if (code === "INSUFFICIENT_QUOTA") {
+            msg = "AI is currently unavailable. Please check back later.";
+          } else if (code === "RATE_LIMIT") {
+            msg = typeof data?.error === "string" ? data.error : "Rate limit reached. Try again in a moment.";
+          } else if (res.status === 404) {
+            msg = "AI service unavailable in local dev. Run `npm run dev` (starts Vite + API server) or `npx vercel dev`.";
           } else if (res.status === 405 && isDev) {
-            msg = "AI API route responded with 405. Check that `/api/wilbur` is running under Vercel dev.";
+            msg = "AI API route responded with 405. Check that the API server or Vercel dev is running.";
+          } else if (res.status === 503) {
+            msg = typeof data?.error === "string" ? data.error : msg;
+          } else if (res.status >= 500) {
+            // Keep API error message when present (e.g. invalid key, provider error)
+            if (typeof data?.error === "string") msg = data.error;
+            else msg = "Something went wrong on our end. Please try again in a moment.";
+            if (isDev) console.error("[TutorPanel] API 5xx", res.status, data, responseText?.slice(0, 400));
           } else if (!data?.error && responseText && isDev) {
-            msg = `AI request failed (${res.status}). Open DevTools console for response preview.`;
+            msg = `AI request failed (${res.status}). Open DevTools console for details.`;
           }
           setAiError(msg);
-          if (isDev) console.warn("[TutorPanel] API error", res.status, data, responseText.slice(0, 300));
+          if (isDev) console.warn("[TutorPanel] API error", res.status, data, responseText?.slice(0, 300));
           return;
         }
         const answer = typeof data?.answer === "string" ? data.answer : "";
+        const rawCitations = Array.isArray(data?.citations) ? data.citations : [];
+        const nextCitations = rawCitations.map((c: { title?: string; url?: string; domain?: string; tier?: number }) => ({
+          title: typeof c?.title === "string" ? c.title : "Source",
+          url: typeof c?.url === "string" ? c.url : "#",
+          domain: typeof c?.domain === "string" ? c.domain : "",
+          tier: (c?.tier === 1 || c?.tier === 2 ? c.tier : 1) as 1 | 2,
+        }));
+        setCitations(nextCitations);
         if (mode === "highlight") {
           setHighlightAnswer(answer);
           setHighlightPrompt(payload.selectedText ?? null);
@@ -153,8 +187,14 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
   useEffect(() => {
     const text = selectedText?.trim() ?? "";
     if (!text) {
+      if (highlightDebounceRef.current) {
+        clearTimeout(highlightDebounceRef.current);
+        highlightDebounceRef.current = null;
+      }
+      lastHighlightedRef.current = "";
       setHighlightPrompt(null);
       setHighlightAnswer(null);
+      setCitations([]);
       setTooLongMessage(false);
       return;
     }
@@ -167,12 +207,34 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
     setTooLongMessage(false);
     setHighlightPrompt(text);
     setHighlightAnswer(null);
-    callWilbur("highlight", { selectedText: text });
+
+    if (highlightDebounceRef.current) clearTimeout(highlightDebounceRef.current);
+    highlightDebounceRef.current = setTimeout(() => {
+      highlightDebounceRef.current = null;
+      if (text !== lastHighlightedRef.current) {
+        const now = Date.now();
+        if (now - lastHighlightTimeRef.current < HIGHLIGHT_COOLDOWN_MS) {
+          return;
+        }
+        if (abortRef.current) abortRef.current.abort();
+        lastHighlightedRef.current = text;
+        lastHighlightTimeRef.current = now;
+        callWilbur("highlight", { selectedText: text });
+      }
+    }, HIGHLIGHT_DEBOUNCE_MS);
+
+    return () => {
+      if (highlightDebounceRef.current) {
+        clearTimeout(highlightDebounceRef.current);
+        highlightDebounceRef.current = null;
+      }
+    };
   }, [selectedText, callWilbur]);
 
   const handleAsk = useCallback(() => {
     const q = inputText.trim();
     if (!q) return;
+    if (thinking) return;
     if (q.length > MAX_QUESTION_CHARS) {
       setAiError(`Please keep your question under ${MAX_QUESTION_CHARS} characters.`);
       return;
@@ -180,9 +242,10 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
     setInputText("");
     setAiError(null);
     setMessages((prev) => [...prev, { role: "user", content: q }]);
-    const history = [...messages, { role: "user" as const, content: q }].slice(-MAX_HISTORY);
-    callWilbur("chat", { question: q, history });
-  }, [inputText, messages, callWilbur]);
+    // Send history including the new user message so backend has full context (avoids staleness)
+    const historyWithNew = [...messages, { role: "user" as const, content: q }].slice(-MAX_HISTORY);
+    callWilbur("chat", { question: q, history: historyWithNew });
+  }, [inputText, messages, thinking, callWilbur]);
 
   const visible = visibleProp && isOpen;
 
@@ -259,6 +322,16 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
             </div>
           )}
 
+          {/* "You selected" shown whenever we have a highlight prompt (during loading or after answer) */}
+          {highlightPrompt && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>You selected:</div>
+              <div style={{ padding: "8px 12px", border: `1px solid ${BORDER_LIGHT}`, borderRadius: "var(--radius-md)", fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)" }}>
+                {highlightPrompt}
+              </div>
+            </div>
+          )}
+
           {thinking && (
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -276,38 +349,40 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
 
           {highlightPrompt && highlightAnswer && !thinking && (
             <>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>You selected:</div>
-                <div style={{ padding: "8px 12px", border: `1px solid ${BORDER_LIGHT}`, borderRadius: "var(--radius-md)", fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)" }}>
-                  {highlightPrompt}
-                </div>
-              </div>
               <div style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.65, whiteSpace: "pre-line", marginBottom: 16 }}>
                 {highlightAnswer}
               </div>
+              {citations.length > 0 && (
+                <CitationsList citations={citations} heading="Sources" showWhyTooltip compact />
+              )}
             </>
           )}
 
           {messages.length > 0 && !thinking && (
-            <div style={{ marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
-              {messages.map((m, i) => (
-                <div
-                  key={i}
-                  style={{
-                    marginBottom: 10,
-                    padding: "8px 12px",
-                    borderRadius: "var(--radius-md)",
-                    fontSize: "var(--text-sm)",
-                    textAlign: m.role === "user" ? "right" : "left",
-                    backgroundColor: m.role === "user" ? "rgba(14,92,76,0.08)" : "#f5f3ee",
-                    color: "var(--color-text)",
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {m.content}
-                </div>
-              ))}
-            </div>
+            <>
+              <div style={{ marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
+                {messages.map((m, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      marginBottom: 10,
+                      padding: "8px 12px",
+                      borderRadius: "var(--radius-md)",
+                      fontSize: "var(--text-sm)",
+                      textAlign: m.role === "user" ? "right" : "left",
+                      backgroundColor: m.role === "user" ? "rgba(14,92,76,0.08)" : "#f5f3ee",
+                      color: "var(--color-text)",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {m.content}
+                  </div>
+                ))}
+              </div>
+              {citations.length > 0 && (
+                <CitationsList citations={citations} heading="Sources" showWhyTooltip compact />
+              )}
+            </>
           )}
 
           {!highlightPrompt && !highlightAnswer && messages.length === 0 && !thinking && !tooLongMessage && (

@@ -6,6 +6,7 @@ import { getBlockLesson } from "@/content/lessons";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TutorPanel } from "@/components/layout/TutorPanel";
 import { Icon } from "@/components/ui/Icon";
+import { CitationsList } from "@/components/ui/CitationsList";
 import { AccountPopup } from "@/components/ui/Modal";
 import { POST_ONBOARDING_PROMPT_SIGNUP } from "@/lib/onboardingSchema";
 import { BlockRenderer } from "@/components/lessonBlocks/BlockRenderer";
@@ -22,12 +23,26 @@ export const Lesson: React.FC = () => {
   const [selectedText, setSelectedText] = useState<string | undefined>();
   const [showAccountPopup, setShowAccountPopup] = useState(false);
   const [dismissedAdvancedWarning, setDismissedAdvancedWarning] = useState(false);
-  const [tutorOpen, setTutorOpen] = useState(false);
+  const WILBUR_HELPER_OPEN_KEY = "wilbur_helper_open";
+
+  const [tutorOpen, setTutorOpen] = useState(() => {
+    try {
+      const stored = localStorage.getItem(WILBUR_HELPER_OPEN_KEY);
+      return stored !== "false";
+    } catch {
+      return true;
+    }
+  });
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // When user highlights text, open the tutor panel so content pushes left
+  // When user highlights text, always open the panel (override closed state)
   useEffect(() => {
-    if (selectedText?.trim()) setTutorOpen(true);
+    if (selectedText?.trim()) {
+      setTutorOpen(true);
+      try {
+        localStorage.setItem(WILBUR_HELPER_OPEN_KEY, "true");
+      } catch { /* ignore */ }
+    }
   }, [selectedText]);
 
   const { user } = useAuth();
@@ -53,14 +68,6 @@ export const Lesson: React.FC = () => {
 
   const handleTextSelect = useCallback((text: string) => {
     setSelectedText(text);
-  }, []);
-
-  const handleLegacyTextSelect = useCallback(() => {
-    const selection = window.getSelection();
-    const text = selection?.toString().trim();
-    if (text && text.length > 1 && text.length < 60) {
-      setSelectedText(text);
-    }
   }, []);
 
   const handleMarkComplete = useCallback(() => {
@@ -111,7 +118,6 @@ export const Lesson: React.FC = () => {
         {/* Main content */}
         <div
           ref={contentRef}
-          onMouseUp={blockLesson ? undefined : handleLegacyTextSelect}
           style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: "var(--space-8)" }}
         >
           {/* Soft warning when lesson is advanced for profile */}
@@ -203,41 +209,20 @@ export const Lesson: React.FC = () => {
               </div>
 
               {/* Block renderer */}
-              <BlockRenderer
-                blocks={blockLesson.blocks}
-                onTextSelect={handleTextSelect}
-              />
+              <BlockRenderer blocks={blockLesson.blocks} />
 
-              {/* Sources */}
+              {/* Sources — shared CitationsList with "Why these sources?" */}
               {blockLesson.sources.length > 0 && (
-                <div style={{
-                  marginTop: "var(--space-8)",
-                  padding: "var(--space-4) var(--space-5)",
-                  backgroundColor: "#f8f6f0",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid var(--color-border-light)",
-                }}>
-                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: "#7a7a6e", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Sources
-                  </div>
-                  {blockLesson.sources.map((source, i) => (
-                    <div key={i} style={{ marginBottom: 4 }}>
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontSize: "var(--text-sm)", color: "var(--color-primary)", textDecoration: "none" }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
-                      >
-                        {source.name}
-                      </a>
-                      <span style={{ fontSize: "var(--text-xs)", color: "#b0ab9e", marginLeft: 6 }}>
-                        ({source.type})
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <CitationsList
+                  citations={blockLesson.sources.map((s) => ({
+                    title: s.name,
+                    url: s.url,
+                    domain: s.tier ? `Tier ${s.tier}` : undefined,
+                    type: s.type,
+                  }))}
+                  heading="Sources"
+                  showWhyTooltip
+                />
               )}
 
               {/* Disclaimer */}
@@ -340,15 +325,20 @@ export const Lesson: React.FC = () => {
           )}
         </div>
 
-        {/* Right TutorPanel — always persist on lesson, not closable; scrolls with content */}
+        {/* Right TutorPanel — close X persists to localStorage; highlight re-opens */}
         <TutorPanel
           key={slug}
           lessonId={slug}
           selectedText={selectedText}
           visible
           open={tutorOpen}
-          onClose={() => setTutorOpen(false)}
-          closable={false}
+          onClose={() => {
+            setTutorOpen(false);
+            try {
+              localStorage.setItem(WILBUR_HELPER_OPEN_KEY, "false");
+            } catch { /* ignore */ }
+          }}
+          closable
         />
       </div>
 

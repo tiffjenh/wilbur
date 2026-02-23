@@ -85,6 +85,7 @@ const INVESTING_EXP_MAP: Record<string, InvestedBefore> = {
   never:         "never",
   a_little:      "a-little",
   yes_regularly: "regularly",
+  a_lot:         "regularly", // "invest a lot" → same as regularly for path
 };
 
 const GOAL_YEAR_MAP: Record<string, GoalThisYear> = {

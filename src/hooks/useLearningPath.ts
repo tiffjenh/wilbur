@@ -16,6 +16,7 @@ import { LESSON_CATALOG, LESSON_CATALOG_BY_ID } from "@/content/lessons/lessonCa
 import { generateLearningPath, getScoredCandidates, type GenerateOpts } from "@/lib/recommendation/generatePath";
 import type { ScoredLesson, LessonFeedback } from "@/lib/recommendation/types";
 import { computePersonaTags } from "@/lib/recommendation/profileTags";
+import { getLearningTier } from "@/lib/recommendation/scoring";
 import { loadCompletedSync, loadFeedbackSync, markComplete, saveFeedback } from "@/lib/storage/lessonProgress";
 import { loadUserAddedSync, loadUserAdded } from "@/lib/storage/userAddedLessons";
 import { toQuestionnaireAnswers } from "@/lib/recommendation/adapter";
@@ -69,6 +70,8 @@ export interface LessonWithMeta extends ScoredLesson {
 export interface LearningPathDebugInfo {
   rawAnswers: Record<string, unknown> | null;
   personaTags: string[];
+  tier: string;
+  pathLessons: { id: string; title: string; reasons: string[] }[];
   top10Scores: { id: string; title: string; score: number; reasons: string[] }[];
 }
 
@@ -158,10 +161,25 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
 
       if (isDev) {
         const top10 = getScoredCandidates(LESSON_CATALOG, answers, genOpts).slice(0, 10);
+        const tier = getLearningTier(answers);
+        const pathLessons = recommendedWithMeta.map((l) => ({
+          id: l.id,
+          title: l.title,
+          reasons: l._reasons ?? [],
+        }));
         setDebugInfo({
           rawAnswers: answers as unknown as Record<string, unknown>,
           personaTags: computePersonaTags(answers),
+          tier,
+          pathLessons,
           top10Scores: top10,
+        });
+        console.log("[Learning Path]", {
+          tier,
+          pathLessonIds: pathLessons.map((p) => p.id),
+          pathLessonTitles: pathLessons.map((p) => p.title),
+          why: pathLessons.map((p) => ({ id: p.id, topReason: p.reasons[0] ?? "" })),
+          storedAnswers: answers,
         });
       }
     } catch (e) {
