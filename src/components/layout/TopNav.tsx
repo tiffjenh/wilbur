@@ -224,15 +224,31 @@ const ProfileDropdown: React.FC<{
 }> = ({ user, signOut, onNavigate }) => {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearCloseTimeout = useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    clearCloseTimeout();
+    closeTimeoutRef.current = setTimeout(() => setOpen(false), 150);
+  }, [clearCloseTimeout]);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        clearCloseTimeout();
+        setOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+    return () => { document.removeEventListener("mousedown", handler); clearCloseTimeout(); };
+  }, [open, clearCloseTimeout]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
@@ -253,8 +269,15 @@ const ProfileDropdown: React.FC<{
     <div
       ref={wrapRef}
       style={{ position: "relative" }}
-      onMouseEnter={() => !isTouch && setOpen(true)}
-      onMouseLeave={() => !isTouch && setOpen(false)}
+      onMouseEnter={() => {
+        if (isTouch) return;
+        clearCloseTimeout();
+        setOpen(true);
+      }}
+      onMouseLeave={() => {
+        if (isTouch) return;
+        scheduleClose();
+      }}
     >
       <button
         type="button"
@@ -286,15 +309,16 @@ const ProfileDropdown: React.FC<{
           role="menu"
           style={{
             position: "absolute",
-            top: "calc(100% + 8px)",
+            top: "calc(100% + 4px)",
             right: 0,
-            minWidth: 160,
-            backgroundColor: "var(--color-surface, #faf8f5)",
-            border: "1px solid var(--color-black)",
-            borderRadius: "var(--radius-md)",
-            padding: "6px",
+            minWidth: 200,
+            backgroundColor: "var(--color-surface)",
+            border: "2px solid var(--color-black)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-dropdown)",
+            padding: "6px 6px 8px",
             zIndex: 500,
-            boxShadow: "none",
+            animation: "profileDropdownIn 180ms var(--ease-out)",
           }}
         >
           <Link
@@ -302,18 +326,25 @@ const ProfileDropdown: React.FC<{
             role="menuitem"
             onClick={() => setOpen(false)}
             style={{
-              display: "block",
-              padding: "10px 12px",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              minHeight: 44,
+              padding: "9px 10px",
               borderRadius: "var(--radius-md)",
               fontSize: "var(--text-sm)",
-              fontWeight: 500,
+              fontWeight: 600,
               color: "var(--color-text)",
               textDecoration: "none",
               fontFamily: "var(--font-sans)",
+              transition: "background-color var(--duration-fast)",
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover, #f0ece4)"; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
           >
+            <span style={{ flexShrink: 0, color: "var(--color-text-secondary)" }}>
+              <Icon name="user" size={18} strokeWidth={1.8} />
+            </span>
             Account
           </Link>
           <Link
@@ -321,18 +352,25 @@ const ProfileDropdown: React.FC<{
             role="menuitem"
             onClick={() => setOpen(false)}
             style={{
-              display: "block",
-              padding: "10px 12px",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              minHeight: 44,
+              padding: "9px 10px",
               borderRadius: "var(--radius-md)",
               fontSize: "var(--text-sm)",
-              fontWeight: 500,
+              fontWeight: 600,
               color: "var(--color-text)",
               textDecoration: "none",
               fontFamily: "var(--font-sans)",
+              transition: "background-color var(--duration-fast)",
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover, #f0ece4)"; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
           >
+            <span style={{ flexShrink: 0, color: "var(--color-text-secondary)" }}>
+              <Icon name="settings" size={18} strokeWidth={1.8} />
+            </span>
             Settings
           </Link>
           <button
@@ -340,22 +378,29 @@ const ProfileDropdown: React.FC<{
             role="menuitem"
             onClick={handleLogout}
             style={{
-              display: "block",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
               width: "100%",
+              minHeight: 44,
               textAlign: "left",
-              padding: "10px 12px",
+              padding: "9px 10px",
               borderRadius: "var(--radius-md)",
               fontSize: "var(--text-sm)",
-              fontWeight: 500,
+              fontWeight: 600,
               color: "var(--color-text)",
               background: "none",
               border: "none",
               cursor: "pointer",
               fontFamily: "var(--font-sans)",
+              transition: "background-color var(--duration-fast)",
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover, #f0ece4)"; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
           >
+            <span style={{ flexShrink: 0, color: "var(--color-text-secondary)" }}>
+              <Icon name="log-out" size={18} strokeWidth={1.8} />
+            </span>
             Log out
           </button>
         </div>

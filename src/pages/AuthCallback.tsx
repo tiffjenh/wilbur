@@ -35,14 +35,14 @@ export const AuthCallback: React.FC = () => {
           return;
         }
         setStatus("done");
-        navigate("/learning", { replace: true });
+        navigate("/login?confirmed=1", { replace: true });
         return;
       }
 
       const { data: { session }, error } = await client.auth.getSession();
       if (!error && session?.user) {
         setStatus("done");
-        navigate("/learning", { replace: true });
+        navigate("/login?confirmed=1", { replace: true });
         return;
       }
 

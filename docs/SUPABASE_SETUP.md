@@ -62,3 +62,16 @@ After this, sign up and log in will send a magic link; clicking it completes aut
 - **Saved lessons**: lessons added from the Library (user_added_lessons).
 
 On login, local data is migrated to Supabase once; on each load, the app hydrates from Supabase so progress and profile are remembered across devices.
+
+## Resend verification email not working?
+
+If you click "Resend verification email" but never get an email:
+
+1. **Account was created in a different Supabase project**  
+   If you first signed up when the app was using another project (e.g. another site’s backend), your email exists there, not in this project. Resend in this app does nothing. **Fix:** Go to **Sign up**, enter the same email and a password, and submit. That creates the user in *this* project and sends one confirmation email to Wilbur’s callback.
+
+2. **Supabase rate limits**  
+   Default is about **2 emails per hour** per project and **one resend per 60 seconds** per user. If you hit the limit, the UI may show an error or the request may succeed but no email is sent. **Fix:** Wait at least 60 seconds between resend clicks, and up to an hour if you’ve already sent 2 emails. For production, configure [custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp) for higher limits.
+
+3. **Default SMTP / authorized emails**  
+   On the free tier, Supabase may only send to addresses authorized in the project. **Fix:** In Supabase Dashboard → **Project Settings → Auth**, check “Authorized emails” (or similar) and add your test address, or set up custom SMTP for production.

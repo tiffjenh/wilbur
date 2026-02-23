@@ -14,12 +14,14 @@ export const Signup: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNeedsConfirmation(false);
     if (!email.trim()) {
       setError("Enter your email.");
       return;
@@ -33,13 +35,17 @@ export const Signup: React.FC = () => {
       return;
     }
     setLoading(true);
-    const { error: err } = await signUp(email.trim(), password, name.trim());
+    const { error: err, requiresConfirmation } = await signUp(email.trim(), password, name.trim());
     setLoading(false);
     if (err) {
       const isNotConfigured = err.message.includes("Supabase not configured");
       setError(isNotConfigured
         ? "Sign up isn’t configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local (see docs/SUPABASE_SETUP.md)."
         : err.message);
+      return;
+    }
+    if (requiresConfirmation) {
+      setNeedsConfirmation(true);
       return;
     }
     navigate("/learning", { replace: true });
@@ -54,6 +60,31 @@ export const Signup: React.FC = () => {
         <p style={{ color: "var(--color-text-muted)", marginBottom: 24, fontSize: "var(--text-sm)" }}>
           Create an account with your email and a password.
         </p>
+        {needsConfirmation ? (
+          <div style={{ padding: "20px 0" }}>
+            <p style={{ color: "var(--color-text)", fontSize: "var(--text-base)", marginBottom: 12 }}>
+              Check your email to confirm your account. Click the link we sent to <strong>{email}</strong>, then log in.
+            </p>
+            <Link
+              to="/login"
+              style={{
+                display: "block",
+                width: "100%",
+                padding: "12px 16px",
+                textAlign: "center" as const,
+                backgroundColor: "var(--color-primary)",
+                color: "var(--color-primary-text)",
+                border: "none",
+                borderRadius: "var(--radius-md)",
+                fontSize: "var(--text-base)",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              Go to log in
+            </Link>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit}>
           <label htmlFor="signup-name" style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: 8 }}>
             Name
@@ -146,6 +177,7 @@ export const Signup: React.FC = () => {
             {loading ? "Creating account…" : "Sign up"}
           </Button>
         </form>
+        )}
         <p style={{ marginTop: 20, fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
           Already have an account? <Link to="/login" style={{ color: "var(--color-primary)" }}>Log in</Link>
         </p>

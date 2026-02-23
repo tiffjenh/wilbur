@@ -118,23 +118,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error ? new Error(error.message) : null };
   }, []);
 
-  const signInWithPassword = useCallback(async (email: string, password: string): Promise<{ error: Error | null }> => {
+  const signInWithPassword = useCallback(async (email: string, password: string): Promise<{ error: Error | null; emailNotConfirmed?: boolean }> => {
     if (!supabase) return { error: new Error("Supabase not configured") };
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
-    return { error: error ? new Error(error.message) : null };
+    if (!error) return { error: null };
+    const msg = error.message.toLowerCase();
+    const emailNotConfirmed =
+      msg.includes("email not confirmed") ||
+      msg.includes("email_not_confirmed") ||
+      msg.includes("confirm your email") ||
+      msg.includes("verify your email");
+    return { error: new Error(error.message), emailNotConfirmed };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, name: string): Promise<{ error: Error | null }> => {
+  const signUp = useCallback(async (email: string, password: string, name: string): Promise<{ error: Error | null; requiresConfirmation?: boolean }> => {
     if (!supabase) return { error: new Error("Supabase not configured") };
-    const { error } = await supabase.auth.signUp({
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
         data: { full_name: name.trim() || undefined },
+        emailRedirectTo: `${origin}/auth/callback`,
       },
+    });
+    if (error) return { error: new Error(error.message) };
+    // When "Confirm email" is on in Supabase, user is created but session is null until they confirm
+    if (data?.user && !data?.session) {
+      return { error: null, requiresConfirmation: true };
+    }
+    return { error: null };
+  }, []);
+
+  const resendVerificationEmail = useCallback(async (email: string): Promise<{ error: Error | null }> => {
+    if (!supabase) return { error: new Error("Supabase not configured") };
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim(),
+      options: { emailRedirectTo: `${origin}/auth/callback` },
     });
     return { error: error ? new Error(error.message) : null };
   }, []);
@@ -153,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithOtp,
     signInWithPassword,
     signUp,
+    resendVerificationEmail,
     signOut,
   };
 

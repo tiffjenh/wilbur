@@ -27,6 +27,7 @@ export const StepThree: React.FC<StepThreeProps> = ({ data, onChange }) => (
       number={5}
       label="How much do you currently have in savings?"
       helper="Include checking, savings, or cash accounts — not investments."
+      bottomMargin={QUESTION_BOTTOM_MARGIN_TWO_QUESTIONS}
     >
       <SliderSelect
         options={SAVINGS_OPTIONS}
@@ -39,6 +40,7 @@ export const StepThree: React.FC<StepThreeProps> = ({ data, onChange }) => (
       number={6}
       label="How much debt do you currently have?"
       helper="Include credit cards, student loans, car payments, and any other debt."
+      bottomMargin={QUESTION_BOTTOM_MARGIN_TWO_QUESTIONS}
     >
       <SliderSelect
         options={DEBT_OPTIONS}
