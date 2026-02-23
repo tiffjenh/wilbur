@@ -201,6 +201,169 @@ const NavDropdown: React.FC<NavDropdownProps> = ({ item, isOpen, onOpen, onClose
   );
 };
 
+/* ── Profile initials + dropdown (authenticated) ── */
+function getInitials(user: { user_metadata?: { full_name?: string }; email?: string | null }): string {
+  const name = user.user_metadata?.full_name?.trim();
+  if (name) {
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    if (parts[0].length >= 2) return parts[0].slice(0, 2).toUpperCase();
+    return parts[0][0].toUpperCase();
+  }
+  const email = user.email?.trim() ?? "";
+  const beforeAt = email.split("@")[0];
+  if (beforeAt.length >= 2) return beforeAt.slice(0, 2).toUpperCase();
+  if (beforeAt.length === 1) return beforeAt[0].toUpperCase();
+  return "?";
+}
+
+const ProfileDropdown: React.FC<{
+  user: { user_metadata?: { full_name?: string }; email?: string | null };
+  signOut: () => Promise<void>;
+  onNavigate: (path: string) => void;
+}> = ({ user, signOut, onNavigate }) => {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    setOpen(false);
+    await signOut();
+    onNavigate("/");
+  }, [signOut, onNavigate]);
+
+  const initials = getInitials(user);
+  const isTouch = typeof window !== "undefined" && "ontouchend" in window;
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{ position: "relative" }}
+      onMouseEnter={() => !isTouch && setOpen(true)}
+      onMouseLeave={() => !isTouch && setOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-label="Profile menu"
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: "50%",
+          border: "2px solid var(--color-black)",
+          background: "transparent",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          fontFamily: "var(--font-sans)",
+          fontSize: "var(--text-sm)",
+          fontWeight: 700,
+          color: "var(--color-text)",
+          padding: 0,
+        }}
+      >
+        {initials}
+      </button>
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            right: 0,
+            minWidth: 160,
+            backgroundColor: "var(--color-surface, #faf8f5)",
+            border: "1px solid var(--color-black)",
+            borderRadius: "var(--radius-md)",
+            padding: "6px",
+            zIndex: 500,
+            boxShadow: "none",
+          }}
+        >
+          <Link
+            to="/account"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            style={{
+              display: "block",
+              padding: "10px 12px",
+              borderRadius: "var(--radius-md)",
+              fontSize: "var(--text-sm)",
+              fontWeight: 500,
+              color: "var(--color-text)",
+              textDecoration: "none",
+              fontFamily: "var(--font-sans)",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover, #f0ece4)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
+          >
+            Account
+          </Link>
+          <Link
+            to="/settings"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            style={{
+              display: "block",
+              padding: "10px 12px",
+              borderRadius: "var(--radius-md)",
+              fontSize: "var(--text-sm)",
+              fontWeight: 500,
+              color: "var(--color-text)",
+              textDecoration: "none",
+              fontFamily: "var(--font-sans)",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover, #f0ece4)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
+          >
+            Settings
+          </Link>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleLogout}
+            style={{
+              display: "block",
+              width: "100%",
+              textAlign: "left",
+              padding: "10px 12px",
+              borderRadius: "var(--radius-md)",
+              fontSize: "var(--text-sm)",
+              fontWeight: 500,
+              color: "var(--color-text)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "var(--font-sans)",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover, #f0ece4)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
+          >
+            Log out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── TopNav ── */
 export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) => {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -304,9 +467,7 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: showFullNav || pathname === "/" ? 0 : "auto" }}>
             {isAuthed ? (
-              <Button variant="outlineBlack" size="sm" onClick={() => signOut()} style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "8px 16px", borderWidth: "2px" }}>
-                Log out
-              </Button>
+              <ProfileDropdown user={user} signOut={signOut} onNavigate={(path) => navigate(path)} />
             ) : (
               <>
                 <Button variant="primary" size="sm" onClick={handleLogin} style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "8px 16px" }}>
@@ -349,7 +510,11 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
           )}
           <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "10px" }}>
             {isAuthed ? (
-              <Button variant="outlineBlack" size="md" onClick={() => { setMobileOpen(false); signOut(); }} style={{ width: "100%" }}>Log out</Button>
+              <>
+                <Link to="/account" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>Account</Link>
+                <Link to="/settings" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>Settings</Link>
+                <Button variant="outlineBlack" size="md" onClick={() => { setMobileOpen(false); signOut().then(() => navigate("/")); }} style={{ width: "100%" }}>Log out</Button>
+              </>
             ) : (
               <>
                 <Button variant="outlineBlack" size="md" onClick={() => { setMobileOpen(false); navigate("/signup"); }} style={{ width: "100%" }}>Sign up</Button>

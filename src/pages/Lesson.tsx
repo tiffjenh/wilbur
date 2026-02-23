@@ -343,6 +343,7 @@ export const Lesson: React.FC = () => {
         {/* Right TutorPanel — always persist on lesson, not closable; scrolls with content */}
         <TutorPanel
           key={slug}
+          lessonId={slug}
           selectedText={selectedText}
           visible
           open={tutorOpen}

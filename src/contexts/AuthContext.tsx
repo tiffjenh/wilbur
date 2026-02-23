@@ -20,6 +20,8 @@ interface AuthContextValue {
   session: Session | null;
   loading: boolean;
   signInWithOtp: (email: string) => Promise<{ error: Error | null }>;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -116,6 +118,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error ? new Error(error.message) : null };
   }, []);
 
+  const signInWithPassword = useCallback(async (email: string, password: string): Promise<{ error: Error | null }> => {
+    if (!supabase) return { error: new Error("Supabase not configured") };
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    return { error: error ? new Error(error.message) : null };
+  }, []);
+
+  const signUp = useCallback(async (email: string, password: string, name: string): Promise<{ error: Error | null }> => {
+    if (!supabase) return { error: new Error("Supabase not configured") };
+    const { error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: { full_name: name.trim() || undefined },
+      },
+    });
+    return { error: error ? new Error(error.message) : null };
+  }, []);
+
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -128,6 +151,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     loading,
     signInWithOtp,
+    signInWithPassword,
+    signUp,
     signOut,
   };
 

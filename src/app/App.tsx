@@ -8,6 +8,8 @@ import { Learning } from "@/pages/Learning";
 import { Library, LibraryCategory } from "@/pages/Library";
 import { Resources } from "@/pages/Resources";
 import { Profile } from "@/pages/Profile";
+import { Account } from "@/pages/Account";
+import { Settings } from "@/pages/Settings";
 import { Lesson } from "@/pages/Lesson";
 import { Onboarding } from "@/pages/Onboarding";
 import { OnboardingComplete } from "@/pages/OnboardingComplete";
@@ -35,6 +37,8 @@ const App: React.FC = () => {
         <Route path="/resources" element={<Resources />} />
         <Route path="/resources/:slug" element={<Resources />} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/lesson/:slug" element={<Lesson />} />
         {/* Catch-all */}
         <Route path="*" element={<Home />} />

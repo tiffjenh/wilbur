@@ -31,7 +31,9 @@ export type IconName =
   | "thumbs-down"
   | "brain"
   | "money-bag"
-  | "plus";
+  | "plus"
+  | "eye"
+  | "eye-off";
 
 interface IconProps {
   name: IconName;
@@ -195,6 +197,18 @@ const PATHS: Record<IconName, React.ReactNode> = {
   ),
   "plus": (
     <path d="M12 5v14M5 12h14" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+  ),
+  "eye": (
+    <>
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  "eye-off": (
+    <>
+      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M1 1l22 22" stroke="currentColor" strokeLinecap="round" />
+    </>
   ),
 };
 

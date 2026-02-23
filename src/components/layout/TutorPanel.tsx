@@ -1,33 +1,23 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Icon } from "../ui/Icon";
 
-const EXPLAIN_API = "/api/ai/explain";
+const WILBUR_API = "/api/wilbur";
 const RATE_LIMIT_MS = 2000;
-const MAX_TEXT_LENGTH = 500;
+const MAX_HIGHLIGHT_CHARS = 150;
+const MAX_QUESTION_CHARS = 300;
+const MAX_HISTORY = 10;
+const isDev = Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
 
-/** Client-side safety: replace advisory phrasing with neutral message */
-const ADVISORY_PATTERNS = ["You should invest", "Buy", "Sell", "I recommend"];
-const NEUTRAL_FALLBACK = "This response was adjusted to maintain educational neutrality.";
-
-function applySafetyFilter(explanation: string): string {
-  const lower = explanation.toLowerCase();
-  for (const phrase of ADVISORY_PATTERNS) {
-    if (lower.includes(phrase.toLowerCase())) return NEUTRAL_FALLBACK;
-  }
-  return explanation;
-}
+const BORDER_LIGHT = "#e2dcd2";
 
 interface TutorPanelProps {
   selectedText?: string;
+  lessonId?: string;
   visible?: boolean;
-  /** When provided, panel open state is controlled by parent (e.g. for full-width content when closed). */
   open?: boolean;
   onClose?: () => void;
-  /** When false, panel has no close button and is always shown when open (e.g. on Lesson page). */
   closable?: boolean;
 }
-
-const keyTerms = ["APY", "FDIC", "debit card", "overdraft", "direct deposit"];
 
 const ThinkingDots: React.FC = () => (
   <div style={{ display: "flex", alignItems: "center", gap: "5px", padding: "12px 0" }}>
@@ -45,10 +35,11 @@ const ThinkingDots: React.FC = () => (
   </div>
 );
 
-const BORDER_LIGHT = "#e2dcd2";
+type Message = { role: "user" | "assistant"; content: string };
 
 export const TutorPanel: React.FC<TutorPanelProps> = ({
   selectedText,
+  lessonId,
   visible: visibleProp = true,
   open: controlledOpen,
   onClose,
@@ -59,123 +50,179 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
   const isOpen = isControlled ? controlledOpen : internalOpen;
   const handleClose = closable && isControlled ? () => onClose?.() : closable ? () => setInternalOpen(false) : undefined;
 
-  const [activeTerm, setActiveTerm] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [thinking, setThinking] = useState(false);
-  const [shownTerm, setShownTerm] = useState<string | null>(null);
-  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [citations, setCitations] = useState<string[]>([]);
+  const [highlightPrompt, setHighlightPrompt] = useState<string | null>(null);
+  const [highlightAnswer, setHighlightAnswer] = useState<string | null>(null);
+  const [tooLongMessage, setTooLongMessage] = useState(false);
   const lastRequestRef = useRef<number>(0);
-  const requestInFlightRef = useRef<boolean>(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  // When user highlights text, open the panel so content pushes left (uncontrolled only; controlled parent handles opening)
   useEffect(() => {
-    if (selectedText && selectedText.trim() && !isControlled) {
-      setInternalOpen(true);
-    }
+    if (selectedText && selectedText.trim() && !isControlled) setInternalOpen(true);
   }, [selectedText, isControlled]);
 
-  const triggerTerm = (term: string) => {
-    if (requestInFlightRef.current) return;
-    setActiveTerm(term);
-    setShownTerm(null);
-    setAiExplanation(null);
-    setAiError(null);
-    setCitations([]);
+  const callWilbur = useCallback(
+    async (mode: "highlight" | "chat", payload: { selectedText?: string; question?: string; history?: Message[] }) => {
+      if (abortRef.current) {
+        abortRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-    const now = Date.now();
-    if (now - lastRequestRef.current < RATE_LIMIT_MS) {
-      setAiError("Please wait a moment before asking again.");
-      return;
-    }
-    lastRequestRef.current = now;
-    requestInFlightRef.current = true;
-    setThinking(true);
+      const now = Date.now();
+      if (now - lastRequestRef.current < RATE_LIMIT_MS) {
+        setAiError("Please wait a moment before asking again.");
+        return;
+      }
+      lastRequestRef.current = now;
+      setAiError(null);
+      setThinking(true);
+      setTooLongMessage(false);
 
-    const body = JSON.stringify({ selectedText: term.slice(0, MAX_TEXT_LENGTH) });
-    fetch(EXPLAIN_API, { method: "POST", headers: { "Content-Type": "application/json" }, body })
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
+      const body = JSON.stringify({
+        mode,
+        lessonId: lessonId ?? undefined,
+        ...payload,
+      });
+
+      if (isDev) {
+        console.log("[TutorPanel] request", { mode, payload: { ...payload, historyLen: payload.history?.length } });
+      }
+
+      try {
+        const res = await fetch(WILBUR_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          signal: controller.signal,
+        });
+        const responseText = await res.text();
+        let data: Record<string, unknown> = {};
+        try {
+          data = responseText ? JSON.parse(responseText) as Record<string, unknown> : {};
+        } catch {
+          data = {};
+        }
+
+        if (isDev) {
+          console.log(
+            "[TutorPanel] response",
+            res.status,
+            data?.error ? { error: data.error } : { answerLen: typeof data?.answer === "string" ? data.answer.length : undefined },
+            !data?.error && typeof data?.answer !== "string" && responseText
+              ? { rawPreview: responseText.slice(0, 160) }
+              : undefined
+          );
+        }
+
         if (!res.ok) {
-          setAiError(typeof data?.error === "string" ? data.error : "We couldn't get an explanation right now. Please try again.");
+          let msg = typeof data?.error === "string" ? data.error : "We couldn't get an answer right now. Please try again.";
+          if (res.status === 404 && isDev) {
+            msg = "Local AI API not found. Use `npx vercel dev` (Vite alone does not run /api/wilbur).";
+          } else if (res.status === 405 && isDev) {
+            msg = "AI API route responded with 405. Check that `/api/wilbur` is running under Vercel dev.";
+          } else if (!data?.error && responseText && isDev) {
+            msg = `AI request failed (${res.status}). Open DevTools console for response preview.`;
+          }
+          setAiError(msg);
+          if (isDev) console.warn("[TutorPanel] API error", res.status, data, responseText.slice(0, 300));
           return;
         }
-        const raw = data.explanation ?? "";
-        setAiExplanation(applySafetyFilter(raw));
-        setCitations(Array.isArray(data.citations) ? data.citations : []);
-        setShownTerm(term);
-      })
-      .catch(() => {
+        const answer = typeof data?.answer === "string" ? data.answer : "";
+        if (mode === "highlight") {
+          setHighlightAnswer(answer);
+          setHighlightPrompt(payload.selectedText ?? null);
+        } else {
+          setMessages((prev) => [...prev.slice(-(MAX_HISTORY - 1)), { role: "assistant", content: answer }]);
+        }
+      } catch (err) {
+        if ((err as Error)?.name === "AbortError") return;
         setAiError("Something went wrong. Please try again in a moment.");
-      })
-      .finally(() => {
+        if (isDev) console.error("[TutorPanel] fetch error", err);
+      } finally {
         setThinking(false);
-        requestInFlightRef.current = false;
-      });
-  };
+        abortRef.current = null;
+      }
+    },
+    [lessonId]
+  );
 
   useEffect(() => {
-    if (selectedText && selectedText.trim()) {
-      triggerTerm(selectedText.trim());
+    const text = selectedText?.trim() ?? "";
+    if (!text) {
+      setHighlightPrompt(null);
+      setHighlightAnswer(null);
+      setTooLongMessage(false);
+      return;
     }
-  }, [selectedText]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleTermClick = (term: string) => {
-    if (activeTerm === term && shownTerm === term) {
-      setActiveTerm(null);
-      setShownTerm(null);
-      setAiExplanation(null);
-      setAiError(null);
-      setCitations([]);
-    } else {
-      setActiveTerm(term);
-      triggerTerm(term);
+    if (text.length > MAX_HIGHLIGHT_CHARS) {
+      setTooLongMessage(true);
+      setHighlightPrompt(null);
+      setHighlightAnswer(null);
+      return;
     }
-  };
+    setTooLongMessage(false);
+    setHighlightPrompt(text);
+    setHighlightAnswer(null);
+    callWilbur("highlight", { selectedText: text });
+  }, [selectedText, callWilbur]);
 
-  const explanation = aiExplanation ?? null;
+  const handleAsk = useCallback(() => {
+    const q = inputText.trim();
+    if (!q) return;
+    if (q.length > MAX_QUESTION_CHARS) {
+      setAiError(`Please keep your question under ${MAX_QUESTION_CHARS} characters.`);
+      return;
+    }
+    setInputText("");
+    setAiError(null);
+    setMessages((prev) => [...prev, { role: "user", content: q }]);
+    const history = [...messages, { role: "user" as const, content: q }].slice(-MAX_HISTORY);
+    callWilbur("chat", { question: q, history });
+  }, [inputText, messages, callWilbur]);
 
   const visible = visibleProp && isOpen;
 
   return (
-    <aside style={{
-      width: visible ? "var(--tutor-width)" : "0px",
-      minWidth: visible ? "var(--tutor-width)" : "0px",
-      borderLeft: visible ? `1px solid ${BORDER_LIGHT}` : "none",
-      backgroundColor: "transparent",
-      overflowY: "auto",
-      overflowX: "hidden",
-      transition: "width var(--duration-slow) var(--ease-out), min-width var(--duration-slow) var(--ease-out)",
-      position: "sticky",
-      top: "var(--nav-height)",
-      height: "calc(100vh - var(--nav-height))",
-      flexShrink: 0,
-      alignSelf: "flex-start",
-    }}>
+    <aside
+      style={{
+        width: visible ? "var(--tutor-width)" : "0px",
+        minWidth: visible ? "var(--tutor-width)" : "0px",
+        borderLeft: visible ? `1px solid ${BORDER_LIGHT}` : "none",
+        backgroundColor: "transparent",
+        overflowY: "auto",
+        overflowX: "hidden",
+        transition: "width var(--duration-slow) var(--ease-out), min-width var(--duration-slow) var(--ease-out)",
+        position: "sticky",
+        top: "var(--nav-height)",
+        height: "calc(100vh - var(--nav-height))",
+        flexShrink: 0,
+        alignSelf: "flex-start",
+      }}
+    >
       {visible && (
-        <div style={{
-          padding: "16px 14px 20px",
-          margin: "12px 10px",
-          backgroundColor: "#fff",
-          border: `1px solid ${BORDER_LIGHT}`,
-          borderRadius: "var(--radius-md)",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-          animation: "tutorSlideIn var(--duration-normal) var(--ease-out)",
-        }}>
-          {/* Header: icon + "Wilbur Helps" + X (only when closable) */}
+        <div
+          style={{
+            padding: "16px 14px 20px",
+            margin: "12px 10px",
+            backgroundColor: "#fff",
+            border: `1px solid ${BORDER_LIGHT}`,
+            borderRadius: "var(--radius-md)",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <div style={{
-                width: 28,
-                height: 28,
-                borderRadius: "50%",
-                backgroundColor: "var(--color-border-light)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}>
+              <div
+                style={{
+                  width: 28, height: 28, borderRadius: "50%",
+                  backgroundColor: "var(--color-border-light)",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}
+              >
                 <Icon name="sparkle" size={16} color="var(--color-primary)" strokeWidth={2} />
               </div>
               <span style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--color-text)" }}>
@@ -183,158 +230,105 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
               </span>
             </div>
             {closable && handleClose != null && (
-              <button
-                type="button"
-                onClick={handleClose}
-                aria-label="Close Wilbur Helps"
-                style={{
-                  padding: 4,
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "var(--color-text-muted)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
+              <button type="button" onClick={handleClose} aria-label="Close" style={{ padding: 4, background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)" }}>
                 <Icon name="x" size={18} strokeWidth={2} />
               </button>
             )}
           </div>
 
-          {/* Content */}
-          {thinking ? (
-            <div style={{ marginBottom: "14px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                <Icon name="piggy-bank" size={20} color="var(--color-pink-bg)" strokeWidth={1.5} style={{ filter: "saturate(0.9)" }} />
-                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Thinking…</span>
-              </div>
-              <ThinkingDots />
-            </div>
-          ) : aiError ? (
-            <div style={{ marginBottom: "14px" }}>
-              <div style={{
+          {aiError && (
+            <div
+              style={{
+                marginBottom: 12,
                 padding: "10px 12px",
                 backgroundColor: "rgba(217,83,79,0.08)",
                 border: "1px solid rgba(217,83,79,0.25)",
                 borderRadius: "var(--radius-md)",
                 fontSize: "var(--text-sm)",
                 color: "var(--color-text-secondary)",
-                lineHeight: 1.5,
-              }}>
-                {aiError}
-              </div>
+              }}
+            >
+              {aiError}
+              <button
+                type="button"
+                onClick={() => setAiError(null)}
+                style={{ marginLeft: 8, fontSize: "var(--text-xs)", textDecoration: "underline", background: "none", border: "none", cursor: "pointer", color: "inherit" }}
+              >
+                Dismiss
+              </button>
             </div>
-          ) : shownTerm && explanation ? (
+          )}
+
+          {thinking && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Wilbur is thinking…</span>
+              </div>
+              <ThinkingDots />
+            </div>
+          )}
+
+          {tooLongMessage && !thinking && (
+            <div style={{ marginBottom: 14, padding: "10px 12px", backgroundColor: "#f8f6f0", borderRadius: "var(--radius-md)", fontSize: "var(--text-sm)", color: "var(--color-text-secondary)" }}>
+              Select a shorter phrase (under {MAX_HIGHLIGHT_CHARS} characters) to get an explanation.
+            </div>
+          )}
+
+          {highlightPrompt && highlightAnswer && !thinking && (
             <>
-              <div style={{ marginBottom: "12px" }}>
-                <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "6px" }}>You selected:</div>
-                <div style={{
-                  backgroundColor: "transparent",
-                  border: `1px solid ${BORDER_LIGHT}`,
-                  borderRadius: "var(--radius-md)",
-                  padding: "8px 12px",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 600,
-                  color: "var(--color-text)",
-                }}>
-                  {shownTerm}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>You selected:</div>
+                <div style={{ padding: "8px 12px", border: `1px solid ${BORDER_LIGHT}`, borderRadius: "var(--radius-md)", fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)" }}>
+                  {highlightPrompt}
                 </div>
               </div>
-              <div style={{
-                fontSize: "var(--text-sm)",
-                color: "var(--color-text-secondary)",
-                lineHeight: 1.65,
-                marginBottom: "16px",
-                whiteSpace: "pre-line",
-              }}>
-                {explanation}
-              </div>
-              {citations.length > 0 && (
-                <div style={{ marginBottom: "12px" }}>
-                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--color-text-muted)", marginBottom: "6px" }}>Sources</div>
-                  <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "var(--text-xs)", color: "var(--color-primary)", lineHeight: 1.6 }}>
-                    {citations.map((url, i) => (
-                      <li key={i}>
-                        <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
-                          {url}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <div style={{ fontSize: "11px", color: "var(--color-text-muted)", lineHeight: 1.5, marginBottom: "12px" }}>
-                Highlight different text for another explanation, or ask a question below.
+              <div style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.65, whiteSpace: "pre-line", marginBottom: 16 }}>
+                {highlightAnswer}
               </div>
             </>
-          ) : (
-            <div style={{ marginBottom: "14px" }}>
-              <p style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6, marginBottom: "12px" }}>
-                Confused? Highlight any text to get an instant, simple explanation.
+          )}
+
+          {messages.length > 0 && !thinking && (
+            <div style={{ marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
+              {messages.map((m, i) => (
+                <div
+                  key={i}
+                  style={{
+                    marginBottom: 10,
+                    padding: "8px 12px",
+                    borderRadius: "var(--radius-md)",
+                    fontSize: "var(--text-sm)",
+                    textAlign: m.role === "user" ? "right" : "left",
+                    backgroundColor: m.role === "user" ? "rgba(14,92,76,0.08)" : "#f5f3ee",
+                    color: "var(--color-text)",
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {m.content}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!highlightPrompt && !highlightAnswer && messages.length === 0 && !thinking && !tooLongMessage && (
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6, marginBottom: 12 }}>
+                Highlight any text in the lesson to get an explanation, or ask a question below.
               </p>
-              <div style={{
-                backgroundColor: "transparent",
-                border: `1px solid ${BORDER_LIGHT}`,
-                borderRadius: "var(--radius-md)",
-                padding: "10px 12px",
-                fontSize: "var(--text-xs)",
-                color: "var(--color-text)",
-                lineHeight: 1.5,
-                fontFamily: "var(--font-sans)",
-              }}>
-                <strong>Try it:</strong> Highlight terms like &quot;APY&quot; or &quot;compound interest&quot;
+              <div style={{ padding: "10px 12px", border: `1px solid ${BORDER_LIGHT}`, borderRadius: "var(--radius-md)", fontSize: "var(--text-xs)", color: "var(--color-text)", fontFamily: "var(--font-sans)" }}>
+                <strong>Try it:</strong> Highlight terms like &quot;APY&quot; or &quot;compound interest&quot;, or type a question.
               </div>
             </div>
           )}
 
-          {/* Key Terms — light grey borders */}
-          {keyTerms.length > 0 && (
-            <div style={{ marginBottom: "16px" }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--color-text)", marginBottom: "8px", fontFamily: "var(--font-sans)" }}>Key Terms:</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {keyTerms.map((term) => {
-                  const isActive = activeTerm === term && shownTerm === term;
-                  return (
-                    <button
-                      key={term}
-                      onClick={() => handleTermClick(term)}
-                      type="button"
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: "var(--radius-md)",
-                        border: `1px solid ${BORDER_LIGHT}`,
-                        backgroundColor: isActive ? "rgba(14, 92, 76, 0.06)" : "transparent",
-                        fontSize: "var(--text-xs)",
-                        fontWeight: isActive ? 600 : 400,
-                        color: "var(--color-text)",
-                        fontFamily: "var(--font-sans)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {term}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Ask input — no tip above; Ask button: black border, transparent bg */}
-          <div style={{ display: "flex", gap: "6px" }}>
+          <div style={{ display: "flex", gap: 6 }}>
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && inputText.trim()) {
-                  setActiveTerm(inputText.trim());
-                  triggerTerm(inputText.trim());
-                  setInputText("");
-                }
-              }}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAsk(); }}
               placeholder="Ask a question..."
+              maxLength={MAX_QUESTION_CHARS + 50}
               style={{
                 flex: 1,
                 padding: "8px 10px",
@@ -349,24 +343,20 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
             />
             <button
               type="button"
-              onClick={() => {
-                if (inputText.trim()) {
-                  setActiveTerm(inputText.trim());
-                  triggerTerm(inputText.trim());
-                  setInputText("");
-                }
-              }}
+              onClick={handleAsk}
+              disabled={thinking || !inputText.trim()}
               style={{
                 padding: "8px 14px",
                 backgroundColor: "transparent",
                 color: "var(--color-text)",
                 border: "2px solid var(--color-black)",
                 borderRadius: "var(--radius-md)",
-                cursor: "pointer",
+                cursor: thinking || !inputText.trim() ? "not-allowed" : "pointer",
                 fontSize: "var(--text-sm)",
                 fontFamily: "var(--font-sans)",
                 fontWeight: 600,
                 flexShrink: 0,
+                opacity: thinking || !inputText.trim() ? 0.6 : 1,
               }}
             >
               Ask
