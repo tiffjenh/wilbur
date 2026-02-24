@@ -33,6 +33,33 @@ const str = (v: unknown, d = ""): string => (typeof v === "string" ? v : d);
 const num = (v: unknown, d: number): number => (typeof v === "number" && !Number.isNaN(v) ? v : d);
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
+function isObject(v: unknown): v is Record<string, unknown> {
+  return v != null && typeof v === "object" && !Array.isArray(v);
+}
+
+/** Legacy: snapshot already has title/content_blocks/etc */
+function isLegacySnapshot(snapshot: Record<string, unknown>): boolean {
+  return (
+    "content_blocks" in snapshot ||
+    "title" in snapshot ||
+    "example_blocks" in snapshot ||
+    "video_blocks" in snapshot ||
+    "source_citations" in snapshot
+  );
+}
+
+/** New: snapshot uses hero/sections/bottom */
+function isNewSnapshot(snapshot: Record<string, unknown>): boolean {
+  const hero = snapshot.hero;
+  const sections = snapshot.sections;
+  const bottom = snapshot.bottom;
+  return isObject(hero) || Array.isArray(sections) || isObject(bottom);
+}
+
+function devLog(...args: unknown[]): void {
+  if (process.env.NODE_ENV !== "production") console.log(...args);
+}
+
 /** Minimal section shape from snapshot.sections (id, type, title, content). */
 export type MapSnapshotSection = {
   id: string;
@@ -135,14 +162,17 @@ export function mapSnapshotToLesson(
   published_at: string | null,
   updated_at: string | null
 ): CMSLessonRecord {
-  if (Array.isArray(snapshot.content_blocks) && snapshot.content_blocks.length > 0) {
+  if (isLegacySnapshot(snapshot)) {
     return snapshotToRecordLegacy(lessonId, snapshot, published_at, updated_at);
   }
   const minimal = mapSnapshotToLessonMinimal(snapshot);
-  const hero = snapshot.hero != null && typeof snapshot.hero === "object" ? (snapshot.hero as Record<string, unknown>) : {};
-  const bottom = snapshot.bottom != null && typeof snapshot.bottom === "object" ? (snapshot.bottom as Record<string, unknown>) : {};
+  const hero = isObject(snapshot.hero) ? (snapshot.hero as Record<string, unknown>) : {};
+  const headline =
+    (hero.headline != null ? String(hero.headline) : "") ||
+    (hero.title != null ? String(hero.title) : "");
 
-  const title = minimal?.title ?? str(hero.headline ?? hero.title ?? snapshot.title, "Untitled");
+  const title = headline.trim() || "Untitled";
+  const bottom = snapshot.bottom != null && typeof snapshot.bottom === "object" ? (snapshot.bottom as Record<string, unknown>) : {};
   const subtitle = hero.subhead != null || hero.subtitle != null ? str(hero.subhead ?? hero.subtitle) : snapshot.subtitle != null ? str(snapshot.subtitle) : null;
   const hero_takeaways = arr(hero.takeaways ?? hero.items ?? hero.bullets).map((t) => (typeof t === "string" ? t : String(t))).filter(Boolean);
 
@@ -240,9 +270,7 @@ export function mapSnapshotToLesson(
     revision: num(snapshot.revision, 1),
   };
 
-  if (isDev) {
-    console.log("Mapped lesson shape:", { title: record.title, content_blocks: record.content_blocks.length, example_blocks: record.example_blocks.length, video_blocks: record.video_blocks.length, quiz: !!record.quiz });
-  }
+  devLog("Mapped lesson shape:", { title: record.title, content_blocks: record.content_blocks.length, example_blocks: record.example_blocks.length, video_blocks: record.video_blocks.length, quiz: !!record.quiz });
   return record;
 }
 
@@ -273,6 +301,29 @@ function snapshotToRecordLegacy(lessonId: string, snapshot: Record<string, unkno
   };
 }
 
+function snapshotToRecord(
+  lessonId: string,
+  snapshot: Record<string, unknown>,
+  published_at: string | null,
+  updated_at: string | null
+): CMSLessonRecord {
+  const shape = isLegacySnapshot(snapshot) ? "legacy" : isNewSnapshot(snapshot) ? "new" : "unknown";
+
+  devLog("[getPublishedLesson] Loaded lesson", lessonId);
+  devLog("[getPublishedLesson] snapshot shape:", shape);
+  devLog("[getPublishedLesson] snapshot keys:", Object.keys(snapshot));
+
+  if (shape === "legacy") {
+    return snapshotToRecordLegacy(lessonId, snapshot, published_at, updated_at);
+  }
+
+  if (shape === "new") {
+    return mapSnapshotToLesson(snapshot, lessonId, published_at, updated_at);
+  }
+
+  return snapshotToRecordLegacy(lessonId, snapshot, published_at, updated_at);
+}
+
 /**
  * Fetch the latest published lesson snapshot by lesson_id (e.g. slug "stocks-101").
  * Returns null on 404, network error, or missing/invalid snapshot (friendly fallback).
@@ -296,18 +347,12 @@ export async function getPublishedLesson(lessonId: string): Promise<GetPublished
     }
 
     const row = data as unknown as PublishedLessonRow;
-    const snapshot = row.snapshot as Record<string, unknown>;
-    const record = mapSnapshotToLesson(snapshot, lessonId, row.published_at ?? null, row.updated_at ?? null);
-
-    if (process.env.NODE_ENV === "development") {
-      console.log("Loaded lesson:", record.title);
-      console.log("Snapshot keys:", Object.keys(snapshot));
-    }
+    const record = snapshotToRecord(row.lesson_id, row.snapshot as any, row.published_at ?? null, row.updated_at ?? null);
 
     return {
       lessonId: row.lesson_id,
       version: row.version,
-      snapshot,
+      snapshot: row.snapshot as Record<string, unknown>,
       published_at: row.published_at ?? null,
       updated_at: row.updated_at ?? null,
       record,
