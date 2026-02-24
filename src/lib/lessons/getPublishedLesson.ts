@@ -149,10 +149,27 @@ function sectionToBlocks(section: unknown): CMSBlock[] {
   }
   if (type === "divider") return [{ type: "divider" }];
   if (type === "chips" && items.length) return [{ type: "chips", items }];
+  if (type === "chartPlaceholder") {
+    const chartType = (["line", "bar", "pie"].includes(str(s.chartType)) ? s.chartType : "line") as "line" | "bar" | "pie";
+    return [{ type: "chartPlaceholder", chartType, title: str(s.title), description: str(s.description) }];
+  }
+  if (type === "imagePlaceholder") {
+    return [{ type: "imagePlaceholder", title: str(s.title), description: str(s.description) }];
+  }
 
   if (s.title && text) return [{ type: "heading", level: 2, text: str(s.title) }, { type: "paragraph", text }];
   if (text) return [{ type: "paragraph", text }];
   return [];
+}
+
+/** Map sections array to content_blocks (CMSBlock[]). Ensures at least one block. */
+function sectionsToContentBlocks(sections: unknown[]): CMSBlock[] {
+  const out: CMSBlock[] = [];
+  for (const section of sections) {
+    out.push(...sectionToBlocks(section));
+  }
+  if (out.length === 0) out.push({ type: "paragraph", text: " " });
+  return out;
 }
 
 /** Map snapshot shape { hero, sections, bottom } or legacy { content_blocks, ... } to CMSLessonRecord for LessonRenderer. */
@@ -172,39 +189,64 @@ export function mapSnapshotToLesson(
     (hero.title != null ? String(hero.title) : "");
 
   const title = headline.trim() || "Untitled";
-  const bottom = snapshot.bottom != null && typeof snapshot.bottom === "object" ? (snapshot.bottom as Record<string, unknown>) : {};
+  const bottom =
+    snapshot.bottom != null && typeof snapshot.bottom === "object"
+      ? (snapshot.bottom as Record<string, unknown>)
+      : {};
   const subtitle = hero.subhead != null || hero.subtitle != null ? str(hero.subhead ?? hero.subtitle) : snapshot.subtitle != null ? str(snapshot.subtitle) : null;
   const hero_takeaways = arr(hero.takeaways ?? hero.items ?? hero.bullets).map((t) => (typeof t === "string" ? t : String(t))).filter(Boolean);
 
-  const content_blocks: CMSBlock[] = minimal
-    ? minimal.content_blocks.flatMap((section) => {
+  const rawSections = arr(snapshot.sections);
+  const hasRealSections = rawSections.length > 0;
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[mapSnapshotToLesson] snapshot keys:", Object.keys(snapshot));
+    console.log("[mapSnapshotToLesson] rawSections.length:", rawSections.length, "hasRealSections:", hasRealSections);
+    if (rawSections.length > 0) {
+      console.log("[mapSnapshotToLesson] first section type:", (rawSections[0] as Record<string, unknown>)?.type);
+    }
+  }
+
+  const content_blocks: CMSBlock[] = (() => {
+    // ✅ ALWAYS prefer real sections
+    if (hasRealSections) {
+      const out: CMSBlock[] = [];
+      for (const section of rawSections) {
+        out.push(...sectionToBlocks(section));
+      }
+      return out.length ? out : [{ type: "paragraph", text: " " }];
+    }
+
+    // Only fall back to minimal if NO sections exist
+    if (minimal) {
+      return minimal.content_blocks.flatMap((section) => {
         const blocks: CMSBlock[] = [];
         if (section.title) blocks.push({ type: "heading", level: 2, text: section.title });
         if (section.content) blocks.push({ type: "paragraph", text: section.content });
-        if (blocks.length === 0) blocks.push({ type: "paragraph", text: " " });
-        return blocks;
-      })
-    : (() => {
-        const out: CMSBlock[] = [];
-        for (const section of arr(snapshot.sections)) out.push(...sectionToBlocks(section));
-        if (out.length === 0) out.push({ type: "paragraph", text: " " });
-        return out;
-      })();
-  if (content_blocks.length === 0) {
-    content_blocks.push({ type: "paragraph", text: " " });
-  }
+        return blocks.length ? blocks : [{ type: "paragraph", text: " " }];
+      });
+    }
 
-  const exampleArr = minimal?.example != null ? (Array.isArray(minimal.example) ? minimal.example : [minimal.example]) : arr(bottom.examples ?? bottom.example_blocks);
+    return [{ type: "paragraph", text: " " }];
+  })();
+
+  const exampleArr = arr(bottom.examples).length
+    ? arr(bottom.examples)
+    : minimal?.example != null
+      ? (Array.isArray(minimal.example) ? minimal.example : [minimal.example])
+      : arr(bottom.example_blocks ?? bottom.example);
+
   const example_blocks: CMSBlock[] = [];
-  for (const ex of exampleArr) {
-    example_blocks.push(...sectionToBlocks(ex));
-  }
+  for (const ex of exampleArr) example_blocks.push(...sectionToBlocks(ex));
 
-  const videoArr = minimal?.video != null ? (Array.isArray(minimal.video) ? minimal.video : [minimal.video]) : arr(bottom.video ?? bottom.video_blocks);
+  const videoArr = arr(bottom.video).length
+    ? arr(bottom.video)
+    : minimal?.video != null
+      ? (Array.isArray(minimal.video) ? minimal.video : [minimal.video])
+      : arr(bottom.video_blocks);
+
   const video_blocks: CMSBlock[] = [];
-  for (const v of videoArr) {
-    video_blocks.push(...sectionToBlocks(v));
-  }
+  for (const v of videoArr) video_blocks.push(...sectionToBlocks(v));
 
   let quiz: QuizSpec | null = null;
   const quizRaw = (minimal?.quiz != null ? minimal.quiz : null) ?? bottom.quiz ?? snapshot.quiz;
@@ -271,6 +313,10 @@ export function mapSnapshotToLesson(
   };
 
   devLog("Mapped lesson shape:", { title: record.title, content_blocks: record.content_blocks.length, example_blocks: record.example_blocks.length, video_blocks: record.video_blocks.length, quiz: !!record.quiz });
+  console.log(
+    "CONTENT BLOCK TYPES:",
+    content_blocks.map((b) => b.type)
+  );
   return record;
 }
 
