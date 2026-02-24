@@ -209,13 +209,7 @@ export function mapSnapshotToLesson(
 
   const content_blocks: CMSBlock[] = (() => {
     // ✅ ALWAYS prefer real sections
-    if (hasRealSections) {
-      const out: CMSBlock[] = [];
-      for (const section of rawSections) {
-        out.push(...sectionToBlocks(section));
-      }
-      return out.length ? out : [{ type: "paragraph", text: " " }];
-    }
+    if (hasRealSections) return sectionsToContentBlocks(rawSections);
 
     // Only fall back to minimal if NO sections exist
     if (minimal) {
