@@ -29,16 +29,7 @@ function hasFullNavAccess(): boolean {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  {
-    label: "Dashboard", href: "/dashboard/progress",
-    dropdown: {
-      header: "GET STARTED",
-      items: [
-        { label: "Progress Tracker",  description: "Track your learning journey",    href: "/dashboard/progress", icon: "target" },
-        { label: "Confidence Meter",  description: "See how confident you are",      href: "/dashboard/progress", icon: "bar-chart" },
-      ],
-    },
-  },
+  { label: "Dashboard", href: "/dashboard/progress" },
   { label: "Learning", href: "/learning" },
   {
     label: "Library", href: "/library",
@@ -105,6 +96,20 @@ const NavDropdown: React.FC<NavDropdownProps> = ({ item, isOpen, onOpen, onClose
   };
 
   if (!item.dropdown) {
+    if (gateLinkClick) {
+      return (
+        <Link
+          to={item.href}
+          style={linkStyle}
+          onClick={(e) => {
+            e.preventDefault();
+            gateLinkClick(e, item.href);
+          }}
+        >
+          {item.label}
+        </Link>
+      );
+    }
     return <Link to={item.href} style={linkStyle}>{item.label}</Link>;
   }
 
@@ -377,32 +382,6 @@ const ProfileDropdown: React.FC<{
             </span>
             Account
           </Link>
-          <Link
-            to="/settings"
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              minHeight: 44,
-              padding: "9px 10px",
-              borderRadius: "var(--radius-md)",
-              fontSize: "var(--text-sm)",
-              fontWeight: 600,
-              color: "var(--color-text)",
-              textDecoration: "none",
-              fontFamily: "var(--font-sans)",
-              transition: "background-color var(--duration-fast)",
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
-          >
-            <span style={{ flexShrink: 0, color: "var(--color-text-secondary)" }}>
-              <Icon name="settings" size={18} strokeWidth={1.8} />
-            </span>
-            Settings
-          </Link>
           <button
             type="button"
             role="menuitem"
@@ -591,7 +570,6 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
                   <Link to="/admin" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>Admin</Link>
                 )}
                 <Link to="/account" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>Account</Link>
-                <Link to="/settings" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>Settings</Link>
                 <Button variant="outlineBlack" size="md" onClick={() => { setMobileOpen(false); signOut().then(() => navigate("/")); }} style={{ width: "100%" }}>Log out</Button>
               </>
             ) : (
