@@ -87,6 +87,9 @@ const GLOSSARY_ALIASES: Record<string, string> = {
   "529 plan": "529 plan",
   "529 plans": "529 plan",
   option: "options",
+  "certificate of deposit": "certificate of deposit cd",
+  "certificates of deposit": "certificate of deposit cd",
+  cd: "certificate of deposit cd",
 };
 
 /** Lightweight singular/plural for simple nouns (conservative to avoid weird matches). */
@@ -148,8 +151,24 @@ export function findGlossaryEntry(input: string, glossary: GlossaryEntry[] = CFP
     }
   }
 
-  // 4) Best-effort: multi-word input -> try each token (prefer short/acronym-like)
+  // 4) Multi-word: prefer full phrase — try singularized phrase then entry prefix/containment (so "Certificates of Deposit" → CD via alias or phrase match, not Deposit)
   const tokens = normInput.split(" ").filter(Boolean);
+  if (tokens.length > 1) {
+    const singularPhrase = singularize(normInput);
+    if (singularPhrase !== normInput) {
+      const hitPhrase = idx.get(singularPhrase);
+      if (hitPhrase) return hitPhrase;
+    }
+    for (const e of list) {
+      const key = normalizeForGlossary(e.normalized || e.term);
+      if (!key) continue;
+      if (key === normInput || key === singularPhrase) return e;
+      if (key.startsWith(normInput) || normInput.startsWith(key)) return e;
+      if (singularPhrase && (key.startsWith(singularPhrase) || singularPhrase.startsWith(key))) return e;
+    }
+  }
+
+  // 5) Best-effort: single-token fallback (only when no multi-word entry matched)
   if (tokens.length > 1) {
     const tokenPriority = [...tokens].sort((a, b) => (a.length <= 4 ? 0 : 1) - (b.length <= 4 ? 0 : 1));
     for (const t of tokenPriority) {

@@ -33,6 +33,18 @@ describe("cfpbGlossary", () => {
     expect(findGlossaryEntry("Option")?.term).toBe("Options");
   });
 
+  it("findGlossaryEntry('Certificates of Deposit') returns Certificate of deposit (CD), not Deposit", () => {
+    const entry = findGlossaryEntry("Certificates of Deposit");
+    expect(entry).not.toBeNull();
+    expect(entry?.term).toBe("Certificate of deposit (CD)");
+    expect(entry?.term).not.toBe("Deposit");
+  });
+
+  it("findGlossaryEntry('certificate of deposit') and ('CD') return CD entry", () => {
+    expect(findGlossaryEntry("certificate of deposit")?.term).toBe("Certificate of deposit (CD)");
+    expect(findGlossaryEntry("CD")?.term).toBe("Certificate of deposit (CD)");
+  });
+
   it("findGlossaryEntry('Stocks') returns entry with term Stock (plural -> singular)", () => {
     const entry = findGlossaryEntry("Stocks");
     expect(entry).not.toBeNull();
