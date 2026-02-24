@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Icon } from "../ui/Icon";
 import { CitationsList } from "../ui/CitationsList";
-import { findGlossaryEntry, formatGlossaryAnswer } from "@/lib/glossary/cfpbGlossary";
+import { findGlossaryEntry, formatGlossaryAnswer, normalizeForGlossary } from "@/lib/glossary/cfpbGlossary";
 
 const WILBUR_API = "/api/wilbur";
 const RATE_LIMIT_MS = 2000;
@@ -71,12 +71,22 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
   const [highlightPrompt, setHighlightPrompt] = useState<string | null>(null);
   const [highlightAnswer, setHighlightAnswer] = useState<string | null>(null);
   const [citations, setCitations] = useState<WilburCitation[]>([]);
+  const [fromGlossary, setFromGlossary] = useState(false);
   const [tooLongMessage, setTooLongMessage] = useState(false);
   const lastRequestRef = useRef<number>(0);
   const abortRef = useRef<AbortController | null>(null);
   const highlightDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastHighlightedRef = useRef<string>("");
   const lastHighlightTimeRef = useRef<number>(0);
+
+  // Dev-only: sanity checks for glossary lookup (run once on mount)
+  useEffect(() => {
+    if (!isDev) return;
+    const fdic = findGlossaryEntry("FDIC") !== null;
+    const fdicDot = findGlossaryEntry("FDIC.") !== null;
+    const calls = findGlossaryEntry("calls") === null;
+    console.log("[TutorPanel] glossary sanity:", { "FDIC": fdic, "FDIC.": fdicDot, "calls (expect null)": calls });
+  }, [isDev]);
 
   useEffect(() => {
     if (selectedText && selectedText.trim() && !isControlled) setInternalOpen(true);
@@ -169,6 +179,9 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
         if (data?.source === "glossary" || (mode === "highlight" && typeof data?.answer === "string")) {
           setAiError(null);
         }
+        if (mode === "highlight" && data?.source === "glossary") {
+          setFromGlossary(true);
+        }
         const answer = typeof data?.answer === "string" ? data.answer : "";
         const rawCitations = Array.isArray(data?.citations) ? data.citations : [];
         const nextCitations = rawCitations.map((c: { title?: string; url?: string; domain?: string; tier?: number }) => ({
@@ -207,6 +220,7 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
       setHighlightPrompt(null);
       setHighlightAnswer(null);
       setCitations([]);
+      setFromGlossary(false);
       setTooLongMessage(false);
       return;
     }
@@ -214,40 +228,62 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
       setTooLongMessage(true);
       setHighlightPrompt(null);
       setHighlightAnswer(null);
+      setFromGlossary(false);
       return;
     }
+
     setTooLongMessage(false);
     setHighlightPrompt(text);
     setHighlightAnswer(null);
+    setFromGlossary(false);
 
-    if (highlightDebounceRef.current) clearTimeout(highlightDebounceRef.current);
+    // Cancel any pending debounce so we don't double-fire
+    if (highlightDebounceRef.current) {
+      clearTimeout(highlightDebounceRef.current);
+      highlightDebounceRef.current = null;
+    }
+
+    // GLOSSARY-FIRST: try client-side glossary before any debounce or API call
+    const normalized = normalizeForGlossary(text);
+    const glossaryEntry = findGlossaryEntry(text);
+
+    if (isDev) {
+      console.log("[TutorPanel] highlight", {
+        selectedTextRaw: text,
+        normalized,
+        glossaryEntry: glossaryEntry ? glossaryEntry.term : null,
+        makingNetworkCall: !glossaryEntry,
+        reason: glossaryEntry ? "glossary hit — skipping API" : "no glossary match — will call API after debounce",
+      });
+    }
+
+    if (glossaryEntry) {
+      setHighlightAnswer(formatGlossaryAnswer(glossaryEntry));
+      setCitations([
+        {
+          title: glossaryEntry.term + " — CFPB Glossary",
+          url: glossaryEntry.url,
+          domain: glossaryEntry.domain,
+          tier: glossaryEntry.tier,
+        },
+      ]);
+      setAiError(null);
+      setFromGlossary(true);
+      lastHighlightedRef.current = text;
+      lastHighlightTimeRef.current = Date.now();
+      return;
+    }
+
+    // No glossary match: debounce then call API (AI fallback)
     highlightDebounceRef.current = setTimeout(() => {
       highlightDebounceRef.current = null;
       if (text !== lastHighlightedRef.current) {
         lastHighlightedRef.current = text;
-
-        const glossaryEntry = findGlossaryEntry(text);
-        if (glossaryEntry) {
-          setHighlightAnswer(formatGlossaryAnswer(glossaryEntry));
-          setCitations([
-            {
-              title: "CFPB Youth Financial Education Glossary",
-              url: glossaryEntry.url,
-              domain: glossaryEntry.domain,
-              tier: glossaryEntry.tier,
-            },
-          ]);
-          lastHighlightTimeRef.current = Date.now();
-          setThinking(false);
-          return;
-        }
-
         const now = Date.now();
-        if (now - lastHighlightTimeRef.current < HIGHLIGHT_COOLDOWN_MS) {
-          return;
-        }
+        if (now - lastHighlightTimeRef.current < HIGHLIGHT_COOLDOWN_MS) return;
         if (abortRef.current) abortRef.current.abort();
         lastHighlightTimeRef.current = now;
+        if (isDev) console.log("[TutorPanel] calling /api/wilbur (no glossary match)");
         callWilbur("highlight", {
           selectedText: text,
           excerptBlock: excerptBlock ?? "",
@@ -387,6 +423,11 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
 
           {highlightPrompt && highlightAnswer && !thinking && (
             <>
+              {fromGlossary && (
+                <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: 8 }}>
+                  From CFPB glossary
+                </div>
+              )}
               <div style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.65, whiteSpace: "pre-line", marginBottom: 16 }}>
                 {highlightAnswer}
               </div>

@@ -13,7 +13,7 @@ import { CURRICULUM } from "@/lib/curriculum/curriculum";
 import type { Lesson as CurriculumLesson } from "@/lib/curriculum/curriculum";
 import type { LessonFeedback } from "@/lib/recommendation/types";
 import { computePersonaTags } from "@/lib/recommendation/profileTags";
-import { loadCompletedSync, loadFeedbackSync, markComplete, saveFeedback } from "@/lib/storage/lessonProgress";
+import { loadCompletedSync, markComplete, saveFeedback } from "@/lib/storage/lessonProgress";
 import { loadUserAddedSync, loadUserAdded } from "@/lib/storage/userAddedLessons";
 import { toQuestionnaireAnswers, loadAnswersFromStorage } from "@/lib/recommendation/adapter";
 import { LS_LEARNING_MODE } from "@/lib/onboardingSchema";

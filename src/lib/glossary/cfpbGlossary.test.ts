@@ -24,6 +24,15 @@ describe("cfpbGlossary", () => {
     expect(findGlossaryEntry("FDIC.")?.term).toBe("FDIC");
   });
 
+  it("findGlossaryEntry('calls') returns null (not in CFPB glossary; should fall back to AI)", () => {
+    expect(findGlossaryEntry("calls")).toBeNull();
+  });
+
+  it("findGlossaryEntry('Options') and ('Option') return Options entry", () => {
+    expect(findGlossaryEntry("Options")?.term).toBe("Options");
+    expect(findGlossaryEntry("Option")?.term).toBe("Options");
+  });
+
   it("findGlossaryEntry('Stocks') returns entry with term Stock (plural -> singular)", () => {
     const entry = findGlossaryEntry("Stocks");
     expect(entry).not.toBeNull();

@@ -86,6 +86,7 @@ const GLOSSARY_ALIASES: Record<string, string> = {
   "roth ira": "roth ira",
   "529 plan": "529 plan",
   "529 plans": "529 plan",
+  option: "options",
 };
 
 /** Lightweight singular/plural for simple nouns (conservative to avoid weird matches). */
@@ -218,6 +219,7 @@ export const CFPB_GLOSSARY: GlossaryEntry[] = [
   { term: "Liquidity", normalized: norm("Liquidity"), short: "How quickly you can turn something into cash without losing much value.", url: CFPB_GLOSSARY_URL, domain, tier: 1 },
   { term: "Mortgage", normalized: norm("Mortgage"), short: "A loan used to buy a home, or to borrow against a home's value.", url: CFPB_GLOSSARY_URL, domain, tier: 1 },
   { term: "Mutual fund", normalized: norm("Mutual fund"), short: "A pooled investment that holds many assets; investors own shares of the fund.", url: CFPB_GLOSSARY_URL, domain, tier: 1 },
+  { term: "Options", normalized: norm("Options"), short: "Contracts that give you the right (not the obligation) to buy or sell an asset at a set price by a set date. A call is the right to buy; a put is the right to sell. Options are complex and risky—education only.", url: CFPB_GLOSSARY_URL, domain, tier: 1 },
   { term: "Principal", normalized: norm("Principal"), short: "The original amount of money borrowed or invested, not including interest.", url: CFPB_GLOSSARY_URL, domain, tier: 1 },
   { term: "Roth IRA", normalized: norm("Roth IRA"), short: "A type of IRA where contributions are typically after-tax; qualified withdrawals can be tax-free.", url: CFPB_GLOSSARY_URL, domain, tier: 1 },
   { term: "Risk", normalized: norm("Risk"), short: "The chance that an outcome differs from what you expect (including losing money).", url: CFPB_GLOSSARY_URL, domain, tier: 1 },
