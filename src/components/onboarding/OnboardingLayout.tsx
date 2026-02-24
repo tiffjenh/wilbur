@@ -10,13 +10,15 @@ interface OnboardingLayoutProps {
   onBack: () => void;
   onNext: () => void;
   isLastStep?: boolean;
+  /** Override Next button label (e.g. "Go to Library", "See my path") */
+  nextLabel?: string;
   children: React.ReactNode;
 }
 
-const QUESTIONNAIRE_MAX_WIDTH = 720;
+const QUESTIONNAIRE_MAX_WIDTH = 900;
 const QUESTIONNAIRE_PADDING_X = 48;
 /** Content column width: slider, choices, and Back/Next align to this */
-const CONTENT_MAX_WIDTH = 480;
+const CONTENT_MAX_WIDTH = 640;
 
 export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
   step,
@@ -24,6 +26,7 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
   onBack,
   onNext,
   isLastStep = false,
+  nextLabel,
   children,
 }) => (
   <div
@@ -125,7 +128,7 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
             disabled={!canNext}
             style={{ minWidth: "120px", border: "2px solid var(--color-black)", color: "var(--color-black)" }}
           >
-            {isLastStep ? "See my path" : "Next"}
+            {nextLabel ?? (isLastStep ? "See my path" : "Next")}
           </Button>
         </div>
       </div>

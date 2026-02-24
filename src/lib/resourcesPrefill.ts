@@ -7,11 +7,10 @@ import type { OnboardingData } from "./onboardingSchema";
 const LS_KEY = "wilbur_onboarding_profile";
 
 const INCOME_MIDPOINT: Record<string, number> = {
-  under_15k: 12_000,
-  "15_30k": 22_500,
-  "30_60k": 45_000,
-  "60_100k": 80_000,
-  "100k_plus": 120_000,
+  under_40k: 25_000,
+  "40_80k": 60_000,
+  "80_150k": 115_000,
+  "150k_plus": 175_000,
 };
 
 export interface ResourcesPrefill {
@@ -30,17 +29,15 @@ export function getResourcesPrefill(): ResourcesPrefill {
     const data = JSON.parse(raw) as Partial<OnboardingData>;
     const incomeRange = data.incomeRange;
     const salary = incomeRange && INCOME_MIDPOINT[incomeRange] ? INCOME_MIDPOINT[incomeRange] : undefined;
-    const incomeType = data.incomeType;
-    const is1099 = incomeType === "1099" || incomeType === "both";
-    const isW2 = incomeType === "w2" || incomeType === "both";
-    const benefits = data.benefits ?? [];
-    const has401k = benefits.includes("401k");
+    const workSituation = data.workSituation;
+    const is1099 = workSituation === "self_employed";
+    const isW2 = workSituation === "w2" || workSituation === "w2_and_side";
     return {
-      hasProfile: !!(data.age && data.workStatus && data.incomeType && data.incomeRange),
+      hasProfile: !!(data.stageOfLife && data.workSituation && data.incomeRange),
       stateCode: data.stateCode && data.stateCode !== "prefer_not" ? data.stateCode : undefined,
       annualSalary: salary,
       incomeType: is1099 && !isW2 ? "1099" : "w2",
-      has401k,
+      has401k: false,
       confidenceLevel: data.confidence,
     };
   } catch {

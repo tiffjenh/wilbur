@@ -118,10 +118,10 @@ export function MultiSelect<T extends string>({ options, value, onChange, exclus
   const gridStyle: React.CSSProperties = {
     display: "grid",
     gridTemplateColumns: "repeat(2, 1fr)",
-    gap: "14px",
+    gap: "20px",
   };
   const gridStyleFive: React.CSSProperties = isFive
-    ? { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "14px" }
+    ? { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px" }
     : gridStyle;
 
   const renderOption = (opt: { value: T; label: string }) => {
@@ -154,7 +154,7 @@ export function MultiSelect<T extends string>({ options, value, onChange, exclus
             gridColumn: "1 / -1",
             display: "flex",
             justifyContent: "center",
-            gap: "14px",
+            gap: "20px",
           }}
         >
           {bottomTwo.map(renderOption)}
@@ -314,6 +314,7 @@ export const IconYesRegularly: React.FC<{ size?: number }> = ({ size = 28 }) => 
 interface PlatformCardOption<T extends string> {
   value: T;
   label: string;
+  description?: string;
   icon?: React.ReactNode;
 }
 interface PlatformCardsProps<T extends string> {
@@ -325,9 +326,15 @@ interface PlatformCardsProps<T extends string> {
   center?: boolean;
 }
 export function PlatformCards<T extends string>({ options, value, onChange, compact, center }: PlatformCardsProps<T>) {
-  const containerStyle: React.CSSProperties = center
-    ? { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "12px" }
-    : { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "12px" };
+  const hasDescriptions = options.some((o) => o.description);
+  const singleRow = !hasDescriptions && options.length === 4;
+  const containerStyle: React.CSSProperties = hasDescriptions
+    ? { display: "flex", flexDirection: "column", gap: "12px" }
+    : singleRow
+      ? { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px" }
+      : center
+        ? { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "12px" }
+        : { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "12px" };
   return (
     <div
       role="radiogroup"
@@ -352,11 +359,12 @@ export function PlatformCards<T extends string>({ options, value, onChange, comp
             style={{
               display: "flex",
               flexDirection: "column",
-              alignItems: "center",
+              alignItems: hasDescriptions ? "flex-start" : "center",
               justifyContent: "center",
-              padding: compact ? "10px 12px" : "16px 12px",
-              minHeight: compact ? 72 : 88,
-              ...(center ? { minWidth: 100 } : {}),
+              padding: compact ? "10px 12px" : hasDescriptions ? "16px 18px" : "16px 12px",
+              minHeight: compact ? 72 : hasDescriptions ? undefined : 88,
+              minWidth: 0,
+              ...(center && !hasDescriptions && !singleRow ? { minWidth: 100 } : {}),
               borderRadius: "var(--radius-lg)",
               border: sel ? "2px solid var(--color-primary)" : "2px solid var(--color-black)",
               backgroundColor: sel ? "var(--color-primary)" : "var(--color-bg)",
@@ -367,13 +375,15 @@ export function PlatformCards<T extends string>({ options, value, onChange, comp
               cursor: "pointer",
               transition: "border-color var(--duration-fast), background-color var(--duration-fast), color var(--duration-fast)",
               boxShadow: "none",
+              textAlign: "center",
             }}
           >
             {opt.icon != null ? (
-              <span style={{ marginBottom: compact ? "4px" : "8px", display: "flex", alignItems: "center", justifyContent: "center", color: "inherit" }}>
+              <span style={{ marginBottom: compact ? "4px" : "8px", display: "flex", alignItems: "center", justifyContent: "center", color: "inherit", flexShrink: 0 }}>
                 {opt.icon}
               </span>
-            ) : (
+            ) : null}
+            {!opt.icon && !opt.description ? (
               <span
                 style={{
                   width: compact ? "32px" : "40px",
@@ -391,8 +401,13 @@ export function PlatformCards<T extends string>({ options, value, onChange, comp
               >
                 {opt.label.charAt(0)}
               </span>
-            )}
-            <span style={{ textAlign: "center", lineHeight: 1.3 }}>{opt.label}</span>
+            ) : null}
+            <span style={{ textAlign: hasDescriptions ? "left" : "center", lineHeight: 1.3, whiteSpace: "normal", overflowWrap: "break-word", wordBreak: "break-word" }}>{opt.label}</span>
+            {opt.description ? (
+              <span style={{ fontSize: "var(--text-xs)", color: sel ? "rgba(255,255,255,0.9)" : "var(--color-text-muted)", marginTop: "6px", lineHeight: 1.5, fontWeight: 400 }}>
+                {opt.description}
+              </span>
+            ) : null}
           </button>
         );
       })}
@@ -401,7 +416,7 @@ export function PlatformCards<T extends string>({ options, value, onChange, comp
 }
 
 /* ── DiscreteSlider — condensed; dot directly above each label; pill centered ── */
-const SLIDER_MAX_WIDTH = 480; // same visual length as card choice rows
+const SLIDER_MAX_WIDTH = 640; // same as layout content width for sliders/choices
 
 interface DiscreteSliderOption<T extends string> {
   value: T;
@@ -461,6 +476,8 @@ export function DiscreteSlider<T extends string>({
               fontFamily: "var(--font-sans)",
               fontSize: "var(--text-sm)",
               fontWeight: 600,
+              whiteSpace: "pre-line",
+              textAlign: "center",
             }}
           >
             {options[safeIdx].label}
@@ -542,6 +559,7 @@ export function DiscreteSlider<T extends string>({
                 color: hasSelection && i === safeIdx ? "var(--color-primary)" : "var(--color-text)",
                 fontWeight: hasSelection && i === safeIdx ? 600 : 500,
                 textAlign: "center",
+                whiteSpace: "pre-line",
               }}
             >
               {opt.label}
@@ -600,7 +618,7 @@ export const ConfidenceBar: React.FC<ConfidenceBarProps> = ({
 };
 
 /* ── Question wrapper: numbered icon (light green circle + dark green number), centered choices, thin grey border ── */
-const QUESTION_CHOICE_MAX_WIDTH = 480;
+const QUESTION_CHOICE_MAX_WIDTH = 640;
 const QUESTION_BOTTOM_MARGIN_DEFAULT = 56;
 interface QuestionProps {
   number: number;
@@ -616,7 +634,7 @@ export const Question: React.FC<QuestionProps> = ({ number, label, helper, child
       flexDirection: "column",
       alignItems: "center",
       width: "100%",
-      padding: "20px 20px 24px",
+      padding: "20px 28px 24px",
       border: "1px solid var(--color-border)",
       borderRadius: "var(--radius-lg)",
       backgroundColor: "var(--color-bg)",

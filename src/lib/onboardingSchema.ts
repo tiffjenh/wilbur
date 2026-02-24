@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/* ── Step 9 — State of residence ── */
+/* ── Step 8 — State of residence ── */
 export const US_STATE_CODES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
   "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
@@ -9,202 +9,219 @@ export const US_STATE_CODES = [
 ] as const;
 export const StateCode = z.enum([...US_STATE_CODES, "prefer_not"] as const);
 
-/* ── Step 1 ── */
-export const AgeRange = z.enum(["under_18", "18_22", "23_27", "28_34", "35_44", "45_plus"]);
-export const WorkStatus = z.enum(["in_school", "working", "both", "neither"]);
+/* ── Step 1 — Learning mode ── */
+export const LearningMode = z.enum(["personalized", "browse"]);
 
-/* ── Step 2 ── */
-export const IncomeType = z.enum(["w2", "1099", "both", "no_income"]);
-export const IncomeRange = z.enum([
-  "under_15k", "15_30k", "30_60k", "60_100k", "100k_plus",
+/* ── Step 2 — Stage of life + Work situation ── */
+export const StageOfLife = z.enum([
+  "in_school",
+  "early_career",
+  "mid_career",
+  "established",
+  "nearing_retirement",
+]);
+export const WorkSituation = z.enum([
+  "w2",
+  "self_employed",
+  "w2_and_side",
+  "not_working",
 ]);
 
-/* ── Step 3 ── */
-export const SavingsRange = z.enum(["zero", "under_1k", "1k_5k", "5k_20k", "20k_plus"]);
-export const DebtRange = z.enum(["zero", "under_1k", "1k_10k", "10k_50k", "50k_plus"]);
-
-/* ── Step 4 ── */
-export const BenefitOption = z.enum(["401k", "hsa", "fsa", "stock_options", "rsu", "none"]);
-export const InvestingExp = z.enum(["never", "a_little", "yes_regularly"]);
-
-/* ── Step 5 ── */
-export const GoalThisYear = z.enum([
-  "emergency_fund", "pay_debt", "start_investing",
-  "buy_car", "save_travel", "nothing",
+/* ── Step 3 — Income + Debt ── */
+export const IncomeRangeNew = z.enum([
+  "under_40k",
+  "40_80k",
+  "80_150k",
+  "150k_plus",
 ]);
-export const Goal3to5 = z.enum([
-  "save_home_down_payment", "buy_car", "start_business",
-  "build_investments", "pay_off_debt", "emergency_fund",
+export const DebtType = z.enum([
+  "no_debt",
+  "credit_card",
+  "student_loans",
+  "auto_loan",
+  "mortgage",
+  "business_debt",
 ]);
 
-/* ── Step 6 ── */
-export const MoneyStressor = z.enum([
-  "investing", "taxes", "credit_cards", "budgeting", "retirement", "everything",
+/* ── Step 4 — Emergency savings + Investing experience ── */
+export const EmergencySavings = z.enum([
+  "zero",
+  "less_than_1mo",
+  "1_3mo",
+  "3_6mo",
+  "6_plus",
 ]);
+export const InvestingExp = z.enum([
+  "never",
+  "a_little",
+  "regularly",
+  "advanced",
+]);
+
+/* ── Step 5 — Financial goals (max 3) ── */
+export const Goal3to5New = z.enum([
+  "home_down_payment",
+  "buy_car",
+  "start_business",
+  "passive_income",
+  "grow_investments",
+  "pay_off_debt",
+  "emergency_fund",
+  "financial_independence",
+]);
+
+/* ── Step 6 — Topics of interest ── */
+export const TopicInterest = z.enum([
+  "budgeting",
+  "credit_debt",
+  "taxes",
+  "retirement_accounts",
+  "stock_investing",
+  "real_estate",
+  "options_trading",
+  "passive_income",
+  "starting_business",
+  "financial_independence",
+  "estate_planning",
+  "insurance",
+  "dont_know",
+  "everything",
+]);
+
+/* ── Step 7 — Confidence ── */
 export const ConfidenceLevel = z.union([
   z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5),
 ]);
 
-/* ─────────────────────────────────────────────────────────
-   Full onboarding schema.
-   Required: age, workStatus, incomeType, incomeRange.
-   All others optional (validated when provided).
-──────────────────────────────────────────────────────────── */
+/* ── Full onboarding schema (8 steps) ── */
 export const onboardingSchema = z.object({
-  // Step 1 — both required
-  age: AgeRange,
-  workStatus: WorkStatus,
+  learningMode: LearningMode.optional(),
 
-  // Step 2 — both required
-  incomeType: IncomeType,
-  incomeRange: IncomeRange,
+  stageOfLife: StageOfLife.optional(),
+  workSituation: WorkSituation.optional(),
 
-  // Step 3 — optional
-  savingsRange: SavingsRange.optional(),
-  debtRange: DebtRange.optional(),
+  incomeRange: IncomeRangeNew.optional(),
+  debtTypes: z.array(DebtType).optional(),
 
-  // Step 4 — optional (arrays must not be empty if provided)
-  benefits: z.array(BenefitOption).min(1, "Select at least one").optional(),
+  emergencySavings: EmergencySavings.optional(),
   investingExp: InvestingExp.optional(),
 
-  // Step 5 — optional
-  goalsThisYear: z.array(GoalThisYear).min(1).optional(),
-  goals3to5: z.array(Goal3to5).min(1).optional(),
+  goals3to5: z.array(Goal3to5New).max(3).optional(),
 
-  // Step 6 — optional
-  moneyStressors: z.array(MoneyStressor).min(1).optional(),
+  topics: z.array(TopicInterest).optional(),
+
   confidence: ConfidenceLevel.optional(),
 
-  // Step 9 — state of residence (optional)
   stateCode: StateCode.optional(),
 });
 
 export type OnboardingData = z.infer<typeof onboardingSchema>;
 
-/**
- * Per-step required field keys.
- * "Next" is disabled until every field in the step's array is non-empty.
- *
- * Step 3 (savings / debt) uses slider defaults that are set automatically when the
- * user enters the step, so no fields need to be explicitly required here.
- * Steps 4–8 gate on their primary selection to ensure the user engages.
- */
 export const STEP_REQUIRED_FIELDS: (keyof OnboardingData)[][] = [
-  ["age", "workStatus"],         // Step 1 — platform cards
-  ["incomeType", "incomeRange"], // Step 2 — platform cards + slider
-  [],                            // Step 3 — optional sliders (defaults injected on entry)
-  ["benefits"],                  // Step 4 — multi-select (at least 1, "none" counts)
-  ["goalsThisYear"],             // Step 5 — multi-select (at least 1)
-  ["goals3to5"],                 // Step 6 — multi-select (at least 1)
-  ["moneyStressors"],            // Step 7 — multi-select (at least 1)
-  ["investingExp", "confidence"],// Step 8 — platform card + confidence slider
-  [],                            // Step 9 — state (optional, can skip)
+  ["learningMode"],
+  ["stageOfLife", "workSituation"],
+  ["incomeRange", "debtTypes"],
+  ["emergencySavings", "investingExp"],
+  ["goals3to5"],
+  ["topics"],
+  ["confidence"],
+  [],
 ];
 
-export const TOTAL_STEPS = 9;
+export const TOTAL_STEPS = 8;
 
-/* LocalStorage key */
 export const LS_KEY = "wilbur_onboarding_profile";
+export const LS_LEARNING_MODE = "wilbur_learning_mode";
 
-/** SessionStorage key: set when redirecting from onboarding complete; show create-account popup once when landing on learning/lesson if not signed up */
 export const POST_ONBOARDING_PROMPT_SIGNUP = "wilbur_post_onboarding_prompt_signup";
 
-/**
- * Default values injected silently when entering a step that has sliders.
- * Ensures the user can proceed without explicitly touching the slider,
- * while still recording a meaningful answer.
- */
 export const STEP_SLIDER_DEFAULTS: Record<number, Partial<OnboardingData>> = {
-  3: { savingsRange: "zero", debtRange: "zero" }, // Step 3 — savings & debt
-  8: { confidence: 3 },                           // Step 8 — confidence (midpoint)
+  7: { confidence: 3 },
 };
 
-/* Human-readable labels for each enum (used for display in cards) */
-export const AGE_LABELS: Record<z.infer<typeof AgeRange>, string> = {
-  under_18: "Under 18",
-  "18_22": "18–22",
-  "23_27": "23–27",
-  "28_34": "28–34",
-  "35_44": "35–44",
-  "45_plus": "45+",
+/* ── Labels ── */
+export const LEARNING_MODE_LABELS: Record<z.infer<typeof LearningMode>, string> = {
+  personalized: "Personalized learning path (recommended)",
+  browse: "Browse all lessons now",
 };
 
-export const WORK_STATUS_LABELS: Record<z.infer<typeof WorkStatus>, string> = {
+export const LEARNING_MODE_DESCRIPTIONS: Record<z.infer<typeof LearningMode>, string> = {
+  personalized:
+    "We'll ask a few quick questions and build a roadmap tailored to your situation and goals.",
+  browse:
+    "Skip the questionnaire and explore the full library. You can build your own roadmap.",
+};
+
+export const STAGE_OF_LIFE_LABELS: Record<z.infer<typeof StageOfLife>, string> = {
   in_school: "In school",
-  working: "Working",
-  both: "Both",
-  neither: "Neither",
+  early_career: "Early career\n(0–5 years working)",
+  mid_career: "Mid-career\n(5–15 years working)",
+  established: "Established career\n(15+ years)",
+  nearing_retirement: "Nearing retirement (55+)",
 };
 
-export const INCOME_TYPE_LABELS: Record<z.infer<typeof IncomeType>, string> = {
-  w2: "W2",
-  "1099": "1099 / Freelance",
-  both: "Both",
-  no_income: "No income",
+export const WORK_SITUATION_LABELS: Record<z.infer<typeof WorkSituation>, string> = {
+  w2: "W2 employee",
+  self_employed: "Self-employed / 1099",
+  w2_and_side: "Both W2 + side income",
+  not_working: "Not currently working",
 };
 
-export const INCOME_RANGE_LABELS: Record<z.infer<typeof IncomeRange>, string> = {
-  under_15k: "Under $15K",
-  "15_30k": "$15 - 30K",
-  "30_60k": "$30 - 60K",
-  "60_100k": "$60 - 100K",
-  "100k_plus": "$100K+",
+export const INCOME_RANGE_NEW_LABELS: Record<z.infer<typeof IncomeRangeNew>, string> = {
+  under_40k: "Under $40,000",
+  "40_80k": "$40,000 – $80,000",
+  "80_150k": "$80,000 – $150,000",
+  "150k_plus": "$150,000+",
 };
 
-export const SAVINGS_RANGE_LABELS: Record<z.infer<typeof SavingsRange>, string> = {
+export const DEBT_TYPE_LABELS: Record<z.infer<typeof DebtType>, string> = {
+  no_debt: "No debt",
+  credit_card: "Credit card debt",
+  student_loans: "Student loans",
+  auto_loan: "Auto loan",
+  mortgage: "Mortgage",
+  business_debt: "Business debt",
+};
+
+export const EMERGENCY_SAVINGS_LABELS: Record<z.infer<typeof EmergencySavings>, string> = {
   zero: "$0",
-  under_1k: "Under $1K",
-  "1k_5k": "$1 - 5K",
-  "5k_20k": "$5 - 20K",
-  "20k_plus": "$20K+",
-};
-
-export const DEBT_RANGE_LABELS: Record<z.infer<typeof DebtRange>, string> = {
-  zero: "$0",
-  under_1k: "Under $1K",
-  "1k_10k": "$1 - 10K",
-  "10k_50k": "$10 - 50K",
-  "50k_plus": "$50K+",
-};
-
-export const BENEFIT_LABELS: Record<z.infer<typeof BenefitOption>, string> = {
-  "401k": "401(k)",
-  hsa: "HSA",
-  fsa: "FSA",
-  stock_options: "Stock options",
-  rsu: "RSUs",
-  none: "None",
+  less_than_1mo: "Less than 1 month of expenses",
+  "1_3mo": "1–3 months",
+  "3_6mo": "3–6 months",
+  "6_plus": "6+ months",
 };
 
 export const INVESTING_EXP_LABELS: Record<z.infer<typeof InvestingExp>, string> = {
-  never: "Never",
-  a_little: "A little",
-  yes_regularly: "Yes, regularly",
+  never: "I've never invested",
+  a_little: "I've invested a little (ETFs, retirement accounts)",
+  regularly: "I invest regularly",
+  advanced: "I trade advanced products (options, crypto, individual stocks)",
 };
 
-export const GOALS_YEAR_LABELS: Record<z.infer<typeof GoalThisYear>, string> = {
-  emergency_fund: "Build emergency fund",
-  pay_debt: "Pay off debt",
-  start_investing: "Start investing",
-  buy_car: "Buy a car",
-  save_travel: "Save for travel",
-  nothing: "Nothing specific",
-};
-
-export const GOALS_3_5_LABELS: Record<z.infer<typeof Goal3to5>, string> = {
-  save_home_down_payment: "Save for a home down payment",
+export const GOAL_3_5_NEW_LABELS: Record<z.infer<typeof Goal3to5New>, string> = {
+  home_down_payment: "Save for a home down payment",
   buy_car: "Buy a car",
   start_business: "Start a business",
-  build_investments: "Build investments",
+  passive_income: "Build passive income",
+  grow_investments: "Grow my investments",
   pay_off_debt: "Pay off debt",
   emergency_fund: "Build an emergency fund",
+  financial_independence: "Financial independence / early retirement",
 };
 
-export const STRESSOR_LABELS: Record<z.infer<typeof MoneyStressor>, string> = {
-  investing: "Investing",
+export const TOPIC_INTEREST_LABELS: Record<z.infer<typeof TopicInterest>, string> = {
+  budgeting: "Budgeting & money systems",
+  credit_debt: "Credit & debt",
   taxes: "Taxes",
-  credit_cards: "Credit cards",
-  budgeting: "Budgeting",
-  retirement: "Retirement",
-  everything: "Everything",
+  retirement_accounts: "Retirement accounts",
+  stock_investing: "Stock market investing",
+  real_estate: "Real estate",
+  options_trading: "Options & advanced trading",
+  passive_income: "Passive income",
+  starting_business: "Starting a business",
+  financial_independence: "Financial independence",
+  estate_planning: "Estate planning",
+  insurance: "Insurance basics",
+  dont_know: "I don't know what any of these are",
+  everything: "I want to learn about everything",
 };

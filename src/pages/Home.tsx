@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { MascotPink } from "@/components/ui/MascotPink";
 import { MascotGreen } from "@/components/ui/MascotGreen";
 import { Icon } from "@/components/ui/Icon";
@@ -111,6 +112,8 @@ const GetStartedTransition: React.FC<{ onDone: () => void }> = ({ onDone }) => {
 export const Home: React.FC = () => {
   const [showTransition, setShowTransition] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isLoggedIn = !!user;
 
   const handleGetStarted = () => {
     setShowTransition(true);
@@ -120,9 +123,13 @@ export const Home: React.FC = () => {
     navigate("/onboarding");
   };
 
+  const goToDashboard = () => {
+    navigate("/dashboard/progress");
+  };
+
   return (
     <>
-      {showTransition && <GetStartedTransition onDone={goToOnboarding} />}
+      {showTransition && !isLoggedIn && <GetStartedTransition onDone={goToOnboarding} />}
       <div className="page-enter" style={{ minHeight: "calc(100vh - var(--nav-height))", display: "flex", flexDirection: "column" }}>
 
       {/* ── Hero section ─────────────────────────────── */}
@@ -188,30 +195,57 @@ export const Home: React.FC = () => {
               Learn money stuff that actually matters to you. No boring lectures. No intimidating jargon. Just clear, visual lessons.
             </p>
 
-            <button
-              onClick={handleGetStarted}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "14px 30px",
-                backgroundColor: "var(--color-pink)",
-                color: "var(--color-black)",
-                border: "2px solid var(--color-black)",
-                borderRadius: "var(--radius-lg)",
-                fontSize: "var(--text-base)",
-                fontWeight: 600,
-                fontFamily: "var(--font-sans)",
-                cursor: "pointer",
-                letterSpacing: "0.005em",
-                transition: "background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), filter var(--duration-fast)",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.filter = "brightness(0.97)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.filter = "none"; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}
-            >
-              <Icon name="money-bag" size={18} strokeWidth={2} color="currentColor" style={{ flexShrink: 0 }} />
-              Get started
-            </button>
+            {isLoggedIn ? (
+              <button
+                onClick={goToDashboard}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "14px 30px",
+                  backgroundColor: "var(--color-pink)",
+                  color: "var(--color-black)",
+                  border: "2px solid var(--color-black)",
+                  borderRadius: "var(--radius-lg)",
+                  fontSize: "var(--text-base)",
+                  fontWeight: 600,
+                  fontFamily: "var(--font-sans)",
+                  cursor: "pointer",
+                  letterSpacing: "0.005em",
+                  transition: "background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), filter var(--duration-fast)",
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.filter = "brightness(0.97)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.filter = "none"; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}
+              >
+                <Icon name="target" size={18} strokeWidth={2} color="currentColor" style={{ flexShrink: 0 }} />
+                Go to Dashboard
+              </button>
+            ) : (
+              <button
+                onClick={handleGetStarted}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "14px 30px",
+                  backgroundColor: "var(--color-pink)",
+                  color: "var(--color-black)",
+                  border: "2px solid var(--color-black)",
+                  borderRadius: "var(--radius-lg)",
+                  fontSize: "var(--text-base)",
+                  fontWeight: 600,
+                  fontFamily: "var(--font-sans)",
+                  cursor: "pointer",
+                  letterSpacing: "0.005em",
+                  transition: "background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), filter var(--duration-fast)",
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.filter = "brightness(0.97)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.filter = "none"; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}
+              >
+                <Icon name="money-bag" size={18} strokeWidth={2} color="currentColor" style={{ flexShrink: 0 }} />
+                Get started
+              </button>
+            )}
           </div>
         </div>
 

@@ -21,6 +21,7 @@ import { loadCompletedSync, loadFeedbackSync, markComplete, saveFeedback } from 
 import { loadUserAddedSync, loadUserAdded } from "@/lib/storage/userAddedLessons";
 import { toQuestionnaireAnswers } from "@/lib/recommendation/adapter";
 import { loadAnswersFromStorage } from "@/lib/recommendation/adapter";
+import { LS_LEARNING_MODE } from "@/lib/onboardingSchema";
 
 /* ── Human-readable "Why recommended" copy ──────────────────── */
 
@@ -110,20 +111,33 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
 
   const generate = useCallback(() => {
     setPathError(null);
-    const answers = loadAnswersFromStorage() ?? toQuestionnaireAnswers({});
-
     const completedList = loadCompletedSync();
     const feedbackMap   = loadFeedbackSync();
     const userAddedIds  = loadUserAddedSync();
 
-    const genOpts: GenerateOpts = {
-      maxLessons,
-      completedLessonIds: completedList,
-      feedbackMap,
-    };
+    const isBrowseMode =
+      typeof localStorage !== "undefined" && localStorage.getItem(LS_LEARNING_MODE) === "browse";
 
     try {
-      const scored = generateLearningPath(LESSON_CATALOG, answers, genOpts);
+      let scored: ScoredLesson[];
+
+      if (isBrowseMode) {
+        // Browse mode: no personalization, all lessons unlocked as "recommended" (catalog order)
+        scored = LESSON_CATALOG.map((l) => ({
+          ...l,
+          _score: 0,
+          _reasons: [],
+        }));
+      } else {
+        const answers = loadAnswersFromStorage() ?? toQuestionnaireAnswers({});
+        const genOpts: GenerateOpts = {
+          maxLessons,
+          completedLessonIds: completedList,
+          feedbackMap,
+        };
+        scored = generateLearningPath(LESSON_CATALOG, answers, genOpts);
+      }
+
       const recommendedIds = new Set(scored.map(l => l.id));
 
       // User-added not already in recommended → "Saved / Added by you"
@@ -159,7 +173,9 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
       setSavedLessons(savedWithMeta);
       setIsLoading(false);
 
-      if (isDev) {
+      if (isDev && !isBrowseMode) {
+        const answers = loadAnswersFromStorage() ?? toQuestionnaireAnswers({});
+        const genOpts: GenerateOpts = { maxLessons, completedLessonIds: completedList, feedbackMap };
         const top10 = getScoredCandidates(LESSON_CATALOG, answers, genOpts).slice(0, 10);
         const tier = getLearningTier(answers);
         const pathLessons = recommendedWithMeta.map((l) => ({
@@ -180,6 +196,14 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
           pathLessonTitles: pathLessons.map((p) => p.title),
           why: pathLessons.map((p) => ({ id: p.id, topReason: p.reasons[0] ?? "" })),
           storedAnswers: answers,
+        });
+      } else if (isDev && isBrowseMode) {
+        setDebugInfo({
+          rawAnswers: { learningMode: "browse" },
+          personaTags: [],
+          tier: "browse",
+          pathLessons: recommendedWithMeta.map((l) => ({ id: l.id, title: l.title, reasons: [] })),
+          top10Scores: [],
         });
       }
     } catch (e) {

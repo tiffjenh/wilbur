@@ -6,6 +6,7 @@ import {
   STEP_SLIDER_DEFAULTS,
   TOTAL_STEPS,
   LS_KEY,
+  LS_LEARNING_MODE,
   type OnboardingData,
 } from "@/lib/onboardingSchema";
 import {
@@ -19,21 +20,37 @@ import { generateLearningPath, loadFeedbackMap } from "@/lib/recommendation/gene
 import { saveAnswers, saveLearningPath, clearStoredProfile } from "@/lib/storage/userProfile";
 import { clearProgress } from "@/lib/storage/lessonProgress";
 import { OnboardingLayout } from "@/components/onboarding/OnboardingLayout";
-import { StepOne } from "@/components/onboarding/StepOne";
-import { StepTwo } from "@/components/onboarding/StepTwo";
-import { StepThree } from "@/components/onboarding/StepThree";
-import { StepFour } from "@/components/onboarding/StepFour";
-import { StepEightTwelve } from "@/components/onboarding/StepEightTwelve";
-import { StepFiveQ9, StepFiveQ10 } from "@/components/onboarding/StepFive";
-import { StepSix } from "@/components/onboarding/StepSix";
-import { StepNine } from "@/components/onboarding/StepNine";
+import { StepZero } from "@/components/onboarding/StepZero";
+import { StepOneNew } from "@/components/onboarding/StepOneNew";
+import { StepTwoNew } from "@/components/onboarding/StepTwoNew";
+import { StepThreeNew } from "@/components/onboarding/StepThreeNew";
+import { StepFourNew } from "@/components/onboarding/StepFourNew";
+import { StepFiveNew } from "@/components/onboarding/StepFiveNew";
+import { StepSixNew } from "@/components/onboarding/StepSixNew";
+import { StepSevenNew } from "@/components/onboarding/StepSevenNew";
 
-/* ── Restore from localStorage ── */
+/* Keys from the old questionnaire schema — if present, treat as old draft and clear so new flow shows */
+const OLD_SCHEMA_KEYS = ["age", "workStatus", "incomeType", "incomeRange", "savingsRange", "debtRange", "benefits", "moneyStressors", "goalsThisYear"];
+
+function isOldDraft(parsed: unknown): boolean {
+  if (!parsed || typeof parsed !== "object") return false;
+  return OLD_SCHEMA_KEYS.some((k) => k in (parsed as Record<string, unknown>));
+}
+
+/* ── Restore from localStorage (ignore old-format drafts so new questionnaire always shows) ── */
 function loadFromStorage(): Partial<OnboardingData> {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return {};
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw) as unknown;
+    if (isOldDraft(parsed)) {
+      try {
+        localStorage.removeItem(LS_KEY);
+      } catch {
+        /* ignore */
+      }
+      return {};
+    }
     const result = onboardingSchema.partial().safeParse(parsed);
     return result.success ? result.data : {};
   } catch {
@@ -107,13 +124,26 @@ export const Onboarding: React.FC = () => {
 
   /* ── Navigate forward / backward ── */
   const goNext = useCallback(() => {
+    /* Step 1 + Browse: skip questionnaire, go to Library */
+    if (step === 1 && form.learningMode === "browse") {
+      try {
+        localStorage.setItem(LS_LEARNING_MODE, "browse");
+      } catch { /* ignore */ }
+      saveDraft({ ...form, learningMode: "browse" });
+      navigate("/library");
+      return;
+    }
+
     if (step < TOTAL_STEPS) {
       setStep((s) => s + 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       saveDraft(form);
+      try {
+        localStorage.setItem(LS_LEARNING_MODE, "personalized");
+      } catch { /* ignore */ }
 
-      /* ── Legacy profile (confidence score, focus areas, etc.) ── */
+      /* ── Legacy profile ── */
       const profile = computeLearningProfile(form);
       saveProfile(profile);
 
@@ -126,15 +156,13 @@ export const Onboarding: React.FC = () => {
       });
       const lessonIds = scored.map(l => l.id);
 
-      // Build debug object: { lessonId: { score, topReasons } }
       const debug: Record<string, unknown> = {};
       for (const l of scored) {
         debug[l.id] = { score: l._score, reasons: l._reasons.slice(0, 5) };
       }
 
-      // Save answers + path (Supabase if authed, localStorage always)
-      saveAnswers(answers);               // fire-and-forget async
-      saveLearningPath(lessonIds, debug); // fire-and-forget async
+      saveAnswers(answers);
+      saveLearningPath(lessonIds, debug);
 
       navigate("/onboarding/complete");
     }
@@ -158,6 +186,9 @@ export const Onboarding: React.FC = () => {
   }, []);
   void restart; // exposed on window for dev/testing if needed
 
+  const isBrowseStep = step === 1 && form.learningMode === "browse";
+  const nextLabel = isBrowseStep ? "Go to Library" : step === TOTAL_STEPS ? "See my path" : "Next";
+
   if (!ready) return null;
 
   return (
@@ -167,17 +198,17 @@ export const Onboarding: React.FC = () => {
       canNext={canNext}
       onBack={goBack}
       onNext={goNext}
-      isLastStep={step === TOTAL_STEPS}
+      isLastStep={step === TOTAL_STEPS || isBrowseStep}
+      nextLabel={nextLabel}
     >
-      {step === 1 && <StepOne data={form} onChange={patch} />}
-      {step === 2 && <StepTwo data={form} onChange={patch} />}
-      {step === 3 && <StepThree data={form} onChange={patch} />}
-      {step === 4 && <StepFour data={form} onChange={patch} />}
-      {step === 5 && <StepFiveQ9 data={form} onChange={patch} />}
-      {step === 6 && <StepFiveQ10 data={form} onChange={patch} />}
-      {step === 7 && <StepSix data={form} onChange={patch} />}
-      {step === 8 && <StepEightTwelve data={form} onChange={patch} />}
-      {step === 9 && <StepNine data={form} onChange={patch} />}
+      {step === 1 && <StepZero data={form} onChange={patch} />}
+      {step === 2 && <StepOneNew data={form} onChange={patch} />}
+      {step === 3 && <StepTwoNew data={form} onChange={patch} />}
+      {step === 4 && <StepThreeNew data={form} onChange={patch} />}
+      {step === 5 && <StepFourNew data={form} onChange={patch} />}
+      {step === 6 && <StepFiveNew data={form} onChange={patch} />}
+      {step === 7 && <StepSixNew data={form} onChange={patch} />}
+      {step === 8 && <StepSevenNew data={form} onChange={patch} />}
     </OnboardingLayout>
   );
 };

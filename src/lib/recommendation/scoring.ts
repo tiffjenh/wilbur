@@ -22,28 +22,52 @@ function savingsToTier(s: QuestionnaireAnswers["savings"]): "none" | "low" | "mi
   return "high";
 }
 
-/** Learning tier derived from answers — used for path diversity and stability penalty. */
+function emergencySavingsToTier(em: QuestionnaireAnswers["emergencySavings"]): "none" | "low" | "mid" | "high" {
+  if (!em || em === "zero" || em === "less_than_1mo") return "none";
+  if (em === "1_3mo") return "low";
+  if (em === "3_6mo") return "mid";
+  return "high";
+}
+
+/** Learning tier: beginner / intermediate / advanced per new questionnaire triggers. */
 export type LearningTier = "beginner" | "intermediate" | "advanced";
 
 export function getLearningTier(a: QuestionnaireAnswers): LearningTier {
   const debtTier = debtToTier(a.debt);
+  const emergencyTier = emergencySavingsToTier(a.emergencySavings);
   const invested = a.investedBefore;
   const conf = a.confidence;
+  const topics = a.topics ?? [];
 
+  // Beginner trigger: never invested, low confidence, <1mo emergency, or "I don't know"
   if (
-    (invested === "regularly" || invested === "a-little") &&
+    invested === "never" ||
+    conf <= 2 ||
+    emergencyTier === "none" ||
+    topics.includes("dont_know")
+  ) {
+    return "beginner";
+  }
+
+  // Advanced: regularly or advanced + high confidence + 3+ mo emergency + no debt
+  if (
+    (invested === "regularly" || invested === "advanced") &&
     conf >= 4 &&
+    (emergencyTier === "mid" || emergencyTier === "high") &&
     debtTier === "none"
   ) {
     return "advanced";
   }
+
+  // Intermediate: invested a little + confidence >= 3 + 3+ mo emergency
   if (
-    invested === "regularly" ||
-    (invested === "a-little" && conf >= 3) ||
-    (conf >= 4 && debtTier === "none")
+    invested === "a-little" &&
+    conf >= 3 &&
+    (emergencyTier === "mid" || emergencyTier === "high")
   ) {
     return "intermediate";
   }
+
   return "beginner";
 }
 
@@ -200,13 +224,7 @@ export function scoreLesson(
   if ((benefits.has("hsa") || benefits.has("fsa")) && hasTag(lesson, "benefits")) add(res, 8, "has HSA/FSA");
   if (benefits.has("equity_comp") && matchesAny(lesson, ["equity-comp", "advanced-investing"])) add(res, 10, "has equity comp");
 
-  // Investing experience
-  const skipInvesting101 =
-    (a.investedBefore === "regularly" || (a.investedBefore === "a-little" && a.confidence >= 3)) &&
-    lesson.id === "investing-101";
-  if (skipInvesting101) {
-    add(res, -25, "you've invested before: skipping beginner investing");
-  }
+  // Investing experience (no hard-coded 101 skip; advanced users get advanced lessons prioritized by tier)
   if (a.investedBefore === "never") {
     if (hasTag(lesson, "investing-basics")) add(res, 15, "never invested");
     if (hasTag(lesson, "advanced-investing")) add(res, -10, "never invested: avoid advanced");
@@ -215,8 +233,10 @@ export function scoreLesson(
     if (hasTag(lesson, "investing-basics")) add(res, 10, "some investing");
     if (hasTag(lesson, "retirement")) add(res, 4, "retirement pairing");
   } else {
-    if (hasTag(lesson, "advanced-investing")) add(res, 10, "regular investor");
+    // regularly or advanced
+    if (hasTag(lesson, "advanced-investing")) add(res, 10, "regular/advanced investor");
     if (hasTag(lesson, "level-3")) add(res, 8, "growth readiness");
+    if (a.investedBefore === "advanced" && hasTag(lesson, "options")) add(res, 8, "advanced: options");
   }
 
   // Goals
@@ -238,7 +258,31 @@ export function scoreLesson(
     if (g === "pay_off_debt" && hasTag(lesson, "debt")) add(res, 15, "goal: pay off debt");
     if (g === "emergency_fund" && hasTag(lesson, "emergency-fund")) add(res, 12, "goal: emergency fund");
     if (g === "not_sure" && hasTag(lesson, "money-basics")) add(res, 6, "goal: not sure");
+    if (g === "passive_income" && matchesAny(lesson, ["advanced-investing", "real-estate"])) add(res, 12, "goal: passive income");
+    if (g === "financial_independence" && matchesAny(lesson, ["retirement", "advanced-investing"])) add(res, 12, "goal: financial independence");
   }
+
+  // Topics boost: each selected topic increases weight of matching lesson tags
+  const topicTagMap: Record<string, LessonTag[]> = {
+    budgeting: ["budgeting", "money-basics"],
+    credit_debt: ["credit", "debt"],
+    taxes: ["taxes-federal", "taxes-state"],
+    retirement_accounts: ["retirement", "benefits"],
+    stock_investing: ["investing-basics", "stocks"],
+    real_estate: ["real-estate"],
+    options_trading: ["options", "advanced-investing"],
+    passive_income: ["advanced-investing"],
+    starting_business: ["irregular-income", "taxes-federal"],
+    financial_independence: ["retirement", "advanced-investing"],
+    estate_planning: ["retirement"],
+    insurance: ["insurance"],
+  };
+  const topics = (a.topics ?? []).filter((t) => t !== "dont_know" && t !== "everything");
+  for (const topic of topics) {
+    const tags = topicTagMap[topic];
+    if (tags && matchesAny(lesson, tags)) add(res, 10, `topic: ${topic}`);
+  }
+  // "I want to learn about everything": no filter, only sequence by depth (no extra boost needed)
 
   // Stressors
   for (const s of a.stressors) {

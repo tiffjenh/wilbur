@@ -28,122 +28,73 @@ export type QuestionnaireAnswers = OnboardingData;
 
 export const LS_PROFILE_KEY = "wilbur_learning_profile";
 
-/* ── Numeric proxies for range enums (for comparisons) ──── */
-
-const SAVINGS_VALUE: Record<string, number> = {
-  zero: 0, under_1k: 500, "1k_5k": 3_000, "5k_20k": 12_500, "20k_plus": 25_000,
-};
-const DEBT_VALUE: Record<string, number> = {
-  zero: 0, under_1k: 500, "1k_10k": 5_000, "10k_50k": 30_000, "50k_plus": 60_000,
-};
-const INCOME_VALUE: Record<string, number> = {
-  under_15k: 7_500, "15_30k": 22_500, "30_60k": 45_000,
-  "60_100k": 80_000, "100k_plus": 130_000,
-};
-
-/* ── Derive experience level ─────────────────────────────── */
+/* ── Derive experience level from new schema ─────────────────────────────── */
 
 function deriveLevel(data: Partial<OnboardingData>): ExperienceLevel {
   const confidence = data.confidence ?? 3;
-  const savings = data.savingsRange ?? "zero";
+  const emergencySavings = data.emergencySavings ?? "zero";
   const investingExp = data.investingExp;
-  const income = data.incomeRange;
+  const topics = data.topics ?? [];
 
-  // Advanced: invests regularly + high confidence + solid income
+  if (topics.includes("dont_know") || investingExp === "never" || confidence <= 2) {
+    return "beginner";
+  }
+  if (emergencySavings === "zero" || emergencySavings === "less_than_1mo") {
+    return "beginner";
+  }
   if (
-    investingExp === "yes_regularly" &&
+    (investingExp === "regularly" || investingExp === "advanced") &&
     confidence >= 4 &&
-    (income === "60_100k" || income === "100k_plus")
+    (emergencySavings === "3_6mo" || emergencySavings === "6_plus")
   ) {
     return "advanced";
   }
-
-  // Beginner: no savings, never invested, or low confidence
-  if (savings === "zero" || investingExp === "never" || confidence <= 2) {
-    return "beginner";
-  }
-
-  // Intermediate: some savings, a little experience, medium confidence
   if (
-    (SAVINGS_VALUE[savings] ?? 0) >= 1_000 &&
     investingExp === "a_little" &&
-    confidence >= 3
+    confidence >= 3 &&
+    (emergencySavings === "3_6mo" || emergencySavings === "6_plus")
   ) {
     return "intermediate";
   }
-
   return "beginner";
 }
 
-/* ── Derive focus areas ──────────────────────────────────── */
+/* ── Derive focus areas from new schema ──────────────────────────────────── */
 
 function deriveFocusAreas(data: Partial<OnboardingData>): string[] {
   const areas: string[] = [];
+  const goals35 = data.goals3to5 ?? [];
+  const topics = data.topics ?? [];
+  const debtTypes = data.debtTypes ?? [];
+  const hasDebt = debtTypes.length > 0 && !debtTypes.includes("no_debt");
 
-  const savings = SAVINGS_VALUE[data.savingsRange ?? "zero"] ?? 0;
-  const debt    = DEBT_VALUE[data.debtRange ?? "zero"] ?? 0;
-  const income  = INCOME_VALUE[data.incomeRange ?? "under_15k"] ?? 0;
+  if ((data.confidence ?? 3) <= 3) areas.push("budgeting");
+  if (hasDebt) areas.push("debt-management");
+  const emergencySavings = data.emergencySavings ?? "zero";
+  if (emergencySavings === "zero" || emergencySavings === "less_than_1mo") areas.push("emergency-fund");
+  if (data.investingExp === "never" || goals35.includes("grow_investments")) areas.push("investing-fundamentals");
+  if (data.workSituation === "self_employed" || data.workSituation === "w2_and_side") areas.push("tax-planning");
+  if (topics.includes("budgeting")) areas.push("budgeting");
+  if (topics.includes("credit_debt")) areas.push("credit-management");
+  if (topics.includes("retirement_accounts") || topics.includes("financial_independence")) areas.push("retirement-planning");
+  if (topics.includes("taxes")) areas.push("tax-planning");
+  if (goals35.includes("home_down_payment")) areas.push("home-buying");
 
-  const goalsYear = data.goalsThisYear ?? [];
-  const goals35   = data.goals3to5 ?? [];
-  const benefits  = data.benefits ?? [];
-  const stressors = data.moneyStressors ?? [];
-
-  /* ── Budgeting (always for beginners / low income) ── */
-  if ((data.confidence ?? 3) <= 3 || income < 30_000) {
-    areas.push("budgeting");
-  }
-
-  /* ── Debt management: debt outweighs savings ── */
-  if (debt > savings) areas.push("debt-management");
-
-  /* ── Emergency fund: not in goals and low savings ── */
-  const hasEmergencyGoal =
-    goalsYear.includes("emergency_fund") || goals35.includes("emergency_fund");
-  if (!hasEmergencyGoal && savings < 1_000) areas.push("emergency-fund");
-
-  /* ── Investing fundamentals ── */
-  if (
-    data.investingExp === "never" ||
-    goalsYear.includes("start_investing") ||
-    goals35.includes("build_investments")
-  ) {
-    areas.push("investing-fundamentals");
-  }
-
-  /* ── Tax planning for freelancers ── */
-  if (data.incomeType === "1099" || data.incomeType === "both") {
-    areas.push("tax-planning");
-  }
-
-  /* ── Benefits optimization ── */
-  if (benefits.includes("401k")) areas.push("retirement-401k");
-  if (benefits.includes("hsa"))  areas.push("hsa-optimization");
-
-  /* ── Credit & stressor-based ── */
-  if (stressors.includes("credit_cards"))  areas.push("credit-management");
-  if (stressors.includes("retirement"))    areas.push("retirement-planning");
-  if (stressors.includes("taxes"))         areas.push("tax-planning");
-  if (stressors.includes("budgeting"))     areas.push("budgeting");
-
-  /* ── Home / large purchase ── */
-  if (goals35.includes("save_home_down_payment")) areas.push("home-buying");
-
-  return [...new Set(areas)]; // deduplicate
+  return [...new Set(areas)];
 }
 
 /* ── Urgency score (1–10) ────────────────────────────────── */
 
 function deriveUrgency(data: Partial<OnboardingData>): number {
   let score = 5;
-
-  const savings   = SAVINGS_VALUE[data.savingsRange ?? "zero"] ?? 0;
-  const debt      = DEBT_VALUE[data.debtRange ?? "zero"] ?? 0;
   const confidence = data.confidence ?? 3;
+  const emergencySavings = data.emergencySavings ?? "zero";
+  const debtTypes = data.debtTypes ?? [];
+  const hasDebt = debtTypes.length > 0 && !debtTypes.includes("no_debt");
 
-  if (savings === 0)           score += 2;
-  if (debt > 10_000)           score += 2;
-  if (confidence <= 2)         score += 1;
+  if (emergencySavings === "zero" || emergencySavings === "less_than_1mo") score += 2;
+  if (hasDebt) score += 2;
+  if (confidence <= 2) score += 1;
   if (data.investingExp === "never") score += 1;
 
   return Math.min(10, Math.max(1, score));

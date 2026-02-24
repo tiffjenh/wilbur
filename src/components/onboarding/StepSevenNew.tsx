@@ -1,6 +1,6 @@
 /**
- * Step 9: State of residence (optional).
- * Search bar with autocomplete over all 50 US states + DC + "Prefer not to say".
+ * Screen 8: State of residence (optional).
+ * Same UI as legacy StepNine; question number 11.
  */
 import React, { useState, useRef, useEffect } from "react";
 import type { OnboardingData } from "@/lib/onboardingSchema";
@@ -9,7 +9,7 @@ import { Question } from "./OnboardingControls";
 import { STATE_OPTIONS, getStateProfile } from "@/content/stateData";
 import { Icon } from "@/components/ui/Icon";
 
-interface StepNineProps {
+interface StepSevenNewProps {
   data: Partial<OnboardingData>;
   onChange: (patch: Partial<OnboardingData>) => void;
 }
@@ -23,13 +23,11 @@ function matchState(query: string, state: StateProfile): boolean {
   );
 }
 
-/** Step 9: Q13 — State of residence (search + suggestions) */
-export const StepNine: React.FC<StepNineProps> = ({ data, onChange }) => {
+export const StepSevenNew: React.FC<StepSevenNewProps> = ({ data, onChange }) => {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const selected = data.stateCode;
@@ -67,13 +65,8 @@ export const StepNine: React.FC<StepNineProps> = ({ data, onChange }) => {
     inputRef.current?.focus();
   };
 
-  const handleSelectPreferNot = () => {
-    handleSelectCode("prefer_not");
-  };
-
-  const handleSelectState = (state: StateProfile) => {
-    handleSelectCode(state.stateCode);
-  };
+  const handleSelectPreferNot = () => handleSelectCode("prefer_not");
+  const handleSelectState = (state: StateProfile) => handleSelectCode(state.stateCode);
 
   useEffect(() => {
     if (!showList) setHighlightIndex(-1);
@@ -113,19 +106,11 @@ export const StepNine: React.FC<StepNineProps> = ({ data, onChange }) => {
   };
 
   const hasSelection = Boolean(selected);
-  const inputValue =
-    hasSelection && (query === "" || !isFocused)
-      ? displayLabel
-      : query;
+  const inputValue = hasSelection && (query === "" || !isFocused) ? displayLabel : query;
 
   return (
-    <Question
-      number={13}
-      label="What state do you live in?"
-      helper="We use this to personalize tax content for your state. Totally optional."
-    >
-      <div ref={containerRef} style={{ position: "relative", maxWidth: 480, margin: "0 auto" }}>
-        {/* Wrapper so input + clear button keep stable size */}
+    <Question number={11} label="Which state do you live in?" helper="Optional. We use this to personalize tax content.">
+      <div style={{ position: "relative", maxWidth: 640, margin: "0 auto" }}>
         <div
           style={{
             position: "relative",
@@ -191,7 +176,6 @@ export const StepNine: React.FC<StepNineProps> = ({ data, onChange }) => {
           )}
         </div>
 
-        {/* Suggestions list */}
         {showList && (
           <div
             ref={listRef}
@@ -267,14 +251,11 @@ export const StepNine: React.FC<StepNineProps> = ({ data, onChange }) => {
           </div>
         )}
 
-        {/* State info callout after selection */}
         {stateProfile && !isFocused && (
           <div style={{
             marginTop: 12,
             padding: "10px 14px",
-            backgroundColor: stateProfile.hasStateIncomeTax
-              ? "rgba(14,92,76,0.06)"
-              : "rgba(255,214,176,0.3)",
+            backgroundColor: stateProfile.hasStateIncomeTax ? "rgba(14,92,76,0.06)" : "rgba(255,214,176,0.3)",
             border: `1px solid ${stateProfile.hasStateIncomeTax ? "rgba(14,92,76,0.2)" : "rgba(255,150,100,0.3)"}`,
             borderRadius: 8,
             fontSize: "var(--text-sm)",
@@ -283,17 +264,9 @@ export const StepNine: React.FC<StepNineProps> = ({ data, onChange }) => {
             lineHeight: 1.5,
           }}>
             {stateProfile.hasStateIncomeTax ? (
-              <>
-                <strong>{stateProfile.stateName}</strong> has a state income tax.
-                We'll include relevant state tax lessons in your path.
-                {stateProfile.notes && ` ${stateProfile.notes}`}
-              </>
+              <><strong>{stateProfile.stateName}</strong> has a state income tax. We'll include relevant state tax lessons in your path.{stateProfile.notes && ` ${stateProfile.notes}`}</>
             ) : (
-              <>
-                <strong>{stateProfile.stateName}</strong> has <strong>no state income tax</strong> — great news!
-                {stateProfile.notes && ` ${stateProfile.notes}.`}
-                {" "}Your tax lessons will focus on federal taxes.
-              </>
+              <><strong>{stateProfile.stateName}</strong> has <strong>no state income tax</strong> — great news!{stateProfile.notes && ` ${stateProfile.notes}.`} Your tax lessons will focus on federal taxes.</>
             )}
           </div>
         )}

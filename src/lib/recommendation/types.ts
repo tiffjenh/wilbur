@@ -1,10 +1,16 @@
 export type AgeRange = "under-18" | "18-22" | "23-27" | "28-34" | "35-44" | "45+";
 export type WorkStatus = "school" | "working" | "both" | "neither";
 export type IncomeType = "w2" | "1099" | "both" | "none";
-export type InvestedBefore = "never" | "a-little" | "regularly";
+export type InvestedBefore = "never" | "a-little" | "regularly" | "advanced";
 
 export type SavingsRange = "0" | "<1k" | "1k-5k" | "5k-20k" | "20k+";
 export type DebtRange = "0" | "<1k" | "1k-10k" | "10k-50k" | "50k+";
+
+/** Emergency savings in months (new questionnaire). Used for beginner/intermediate triggers. */
+export type EmergencySavings = "zero" | "less_than_1mo" | "1_3mo" | "3_6mo" | "6_plus";
+
+/** Topic interests from questionnaire; "dont_know" = beginner override, "everything" = unlock all. */
+export type TopicInterest = string;
 
 export type Benefit =
   | "401k"
@@ -28,7 +34,9 @@ export type Goal3to5 =
   | "build_investments"
   | "pay_off_debt"
   | "emergency_fund"
-  | "not_sure";
+  | "not_sure"
+  | "passive_income"
+  | "financial_independence";
 
 export type Stressor =
   | "investing"
@@ -51,7 +59,11 @@ export type QuestionnaireAnswers = {
   goals3to5: Goal3to5[];
   stressors: Stressor[];
   confidence: 1 | 2 | 3 | 4 | 5;
-  stateCode: string; // e.g. "CA"
+  stateCode: string;
+  /** New questionnaire: emergency savings in months. Used for beginner/intermediate triggers. */
+  emergencySavings?: EmergencySavings;
+  /** New questionnaire: topic interests. "dont_know" = beginner override, "everything" = unlock all. */
+  topics?: TopicInterest[];
 };
 
 export type LessonLevel = "level-1" | "level-2" | "level-3" | "level-4" | "level-5";
