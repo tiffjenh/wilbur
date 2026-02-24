@@ -18,6 +18,7 @@ import { LESSON_CATALOG_BY_ID } from "@/content/lessons/lessonCatalog";
 import { loadAnswersFromStorage, toQuestionnaireAnswers } from "@/lib/recommendation/adapter";
 import { loadFeedbackSync } from "@/lib/storage/lessonProgress";
 import { getLessonBySlug, listLessons } from "@/lib/supabase/lessons";
+import { getPublishedLesson } from "@/lib/lessons/getPublishedLesson";
 import type { LessonBlock as LegacyLessonBlock } from "@/content/lessonTypes";
 
 /** Map lib/lessons/content blocks to content/lessonTypes blocks for BlockRenderer. */
@@ -99,18 +100,42 @@ export const Lesson: React.FC = () => {
     } catch { /* ignore */ }
   }, [user]);
 
+  const [publishedLesson, setPublishedLesson] = useState<Awaited<ReturnType<typeof getPublishedLesson>>>(null);
   const [cmsLesson, setCmsLesson] = useState<Awaited<ReturnType<typeof getLessonBySlug>>>(null);
   const [cmsList, setCmsList] = useState<Awaited<ReturnType<typeof listLessons>>>([]);
+  const [lessonLoading, setLessonLoading] = useState(true);
 
+  // Phase 1 CMS: try lesson_latest_published first, then fall back to cms_lessons then local
   useEffect(() => {
-    if (!slug) return;
+    if (!slug) {
+      setLessonLoading(false);
+      return;
+    }
     let cancelled = false;
-    getLessonBySlug(slug)
-      .then((lesson) => {
-        if (!cancelled) setCmsLesson(lesson);
+    setLessonLoading(true);
+    getPublishedLesson(slug)
+      .then((result) => {
+        if (cancelled) return;
+        if (result) {
+          setPublishedLesson(result);
+          setCmsLesson(null);
+          setLessonLoading(false);
+          return;
+        }
+        setPublishedLesson(null);
+        return getLessonBySlug(slug);
+      })
+      .then((fallbackLesson) => {
+        if (cancelled) return;
+        if (fallbackLesson !== undefined) setCmsLesson(fallbackLesson ?? null);
+        setLessonLoading(false);
       })
       .catch(() => {
-        if (!cancelled) setCmsLesson(null);
+        if (!cancelled) {
+          setPublishedLesson(null);
+          setCmsLesson(null);
+          setLessonLoading(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -118,9 +143,10 @@ export const Lesson: React.FC = () => {
   }, [slug]);
 
   useEffect(() => {
-    if (!cmsLesson) return;
+    const category = publishedLesson?.record.category ?? cmsLesson?.category;
+    if (!category) return;
     let cancelled = false;
-    listLessons({ category: cmsLesson.category })
+    listLessons({ category })
       .then((list) => {
         if (!cancelled) setCmsList(list);
       })
@@ -130,15 +156,21 @@ export const Lesson: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [cmsLesson?.category, cmsLesson?.id]);
+  }, [publishedLesson?.record.category, cmsLesson?.category, cmsLesson?.id]);
 
   const curriculumLesson = slug ? CURRICULUM.lessons.find((l) => l.id === slug) ?? null : null;
-  const content = slug && !cmsLesson ? getLessonContent(slug) : null;
-  const excerptBlock = content ? buildLessonExcerpt(content) : cmsLesson ? `${cmsLesson.title}. ${(cmsLesson.hero_takeaways ?? []).join(" ")}` : "";
+  const content = slug && !publishedLesson && !cmsLesson ? getLessonContent(slug) : null;
+  const excerptBlock = content
+    ? buildLessonExcerpt(content)
+    : publishedLesson
+      ? `${publishedLesson.record.title}. ${(publishedLesson.record.hero_takeaways ?? []).join(" ")}`
+      : cmsLesson
+        ? `${cmsLesson.title}. ${(cmsLesson.hero_takeaways ?? []).join(" ")}`
+        : "";
 
   const sidebarLessons = curriculumLesson
     ? CURRICULUM.lessons.filter((l) => l.domainId === curriculumLesson.domainId)
-    : cmsLesson
+    : publishedLesson || cmsLesson
       ? cmsList
       : CURRICULUM.lessons.slice(0, 12);
   const sidebarItems = sidebarLessons.map((l, i) => ({
@@ -164,7 +196,15 @@ export const Lesson: React.FC = () => {
     shouldWarnLesson(catalogLesson, answers, feedbackMap) &&
     !dismissedAdvancedWarning;
 
-  if (!cmsLesson && !curriculumLesson) {
+  const hasLesson = !!publishedLesson || !!cmsLesson || !!curriculumLesson;
+  if (lessonLoading && !hasLesson) {
+    return (
+      <div style={{ padding: "var(--space-8) var(--space-6)", textAlign: "center", color: "var(--color-text-muted)" }}>
+        Loading…
+      </div>
+    );
+  }
+  if (!lessonLoading && !hasLesson) {
     return (
       <div style={{ padding: "var(--space-8) var(--space-6)", textAlign: "center" }}>
         <h2 style={{ fontFamily: "var(--font-serif)", marginBottom: "var(--space-4)" }}>Lesson not found</h2>
@@ -173,12 +213,13 @@ export const Lesson: React.FC = () => {
     );
   }
 
-  const lessonTitle = cmsLesson?.title ?? curriculumLesson?.title ?? "";
-  const lessonCategory = cmsLesson?.category ?? curriculumLesson?.tags[0] ?? curriculumLesson?.domainId ?? "";
-  const lessonDuration = cmsLesson ? `${cmsLesson.estimated_minutes} min` : curriculumLesson ? `${curriculumLesson.estimatedMinutes} min` : "";
-  const lessonLevel = cmsLesson?.level ?? curriculumLesson?.level ?? "beginner";
+  const displayRecord = publishedLesson?.record ?? cmsLesson;
+  const lessonTitle = displayRecord?.title ?? curriculumLesson?.title ?? "";
+  const lessonCategory = displayRecord?.category ?? curriculumLesson?.tags[0] ?? curriculumLesson?.domainId ?? "";
+  const lessonDuration = displayRecord ? `${displayRecord.estimated_minutes} min` : curriculumLesson ? `${curriculumLesson.estimatedMinutes} min` : "";
+  const lessonLevel = displayRecord?.level ?? curriculumLesson?.level ?? "beginner";
   const legacyBlocks = content ? content.blocks.map(contentBlockToLegacy).filter((b): b is LegacyLessonBlock => b != null) : [];
-  const useCmsContent = !!cmsLesson;
+  const useCmsContent = !!publishedLesson || !!cmsLesson;
 
   return (
     <>
@@ -249,8 +290,8 @@ export const Lesson: React.FC = () => {
               </span>
             </div>
 
-            {useCmsContent && cmsLesson ? (
-              <LessonRenderer lesson={cmsLesson} />
+            {useCmsContent && displayRecord ? (
+              <LessonRenderer lesson={displayRecord} />
             ) : content ? (
               <>
                 {content.hero && (
