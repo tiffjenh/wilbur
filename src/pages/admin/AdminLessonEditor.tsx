@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { getLessonByIdAdmin, upsertLessonDraftAdmin, publishLessonAdmin, listLessonVersionsAdmin, rollbackLessonAdmin } from "@/lib/supabase/adminLessons";
-import type { CMSLessonRecord, CMSBlock, QuizSpec, SourceCitation } from "@/lib/lessonBlocks/types";
+import type { CMSLessonRecord, QuizSpec } from "@/lib/lessonBlocks/types";
 import { validateLessonContent } from "@/lib/lessonBlocks/schema";
 import { ALLOWED_CITATION_DOMAINS_TIER1, ALLOWED_CITATION_DOMAINS_TIER2 } from "@/lib/lessonBlocks/schema";
 import { BlockBuilder } from "@/components/admin/BlockBuilder";
@@ -96,7 +96,7 @@ export const AdminLessonEditor: React.FC<{ mode: "create" | "edit" }> = ({ mode 
 
   const handlePublish = async () => {
     if (!validate()) return;
-    if (!(lesson.source_citations?.length >= 1)) {
+    if ((lesson.source_citations?.length ?? 0) < 1) {
       setValidationErrors((e) => [...e, "At least one citation is required to publish."]);
       return;
     }
@@ -344,7 +344,7 @@ export const AdminLessonEditor: React.FC<{ mode: "create" | "edit" }> = ({ mode 
         </button>
         <button
           onClick={handlePublish}
-          disabled={saving || !lesson.id || validationErrors.length > 0 || !(lesson.source_citations?.length >= 1)}
+          disabled={saving || !lesson.id || validationErrors.length > 0 || (lesson.source_citations?.length ?? 0) < 1}
           style={{ padding: "10px 20px", backgroundColor: "var(--color-primary)", color: "#fff", border: "none", borderRadius: "var(--radius-md)", fontWeight: 600, cursor: saving ? "wait" : "pointer" }}
         >
           Publish
