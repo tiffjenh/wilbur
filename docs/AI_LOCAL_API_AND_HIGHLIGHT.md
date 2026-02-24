@@ -112,3 +112,12 @@ After the rate-limit and cache PR:
 3. **429 / retry-after:** If you force or hit a 429, the user sees reset-aware guidance (e.g. "Rate limit reached. Try again in 45s.") and the server does limited backoff (max 2 retries); no repeated spam.
 4. **Panel auto-open + X:** Highlight text → panel opens. Click X → panel closes and state persists (localStorage). Highlight again → panel re-opens.
 5. **Chat:** Conversation continues (history is sent correctly). Ask "Which stocks should I buy?" → polite refusal and education-only offer (no financial advice).
+
+---
+
+## Glossary-first highlight (verification)
+
+Highlight uses the CFPB glossary **before** calling OpenAI. Glossary hits return instantly and do not require an API key.
+
+1. **Glossary hit with OpenAI down:** Remove or invalidate `OPENAI_API_KEY` (e.g. in `.env`). Highlight **"Stocks"** (or "FDIC", "Stock") → the right panel should open and show the CFPB glossary definition. You must **not** see "AI is currently unavailable." In DevTools → Network, the `/api/wilbur` response body should include `"source": "glossary"`.
+2. **Unknown term → AI fallback:** Highlight a phrase that is **not** in the glossary (e.g. "quantum interest"). The request falls back to OpenAI. If the key is missing or invalid, you will see "AI is currently unavailable" (expected). If the key is valid, you get an AI-generated answer and the response has `"source": "ai"`.

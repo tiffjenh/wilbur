@@ -8,7 +8,7 @@
  * CFPB glossary fast-path: highlight (and optional "What is X?" chat) returns instantly without OpenAI.
  */
 import { retrieveApproved } from "./retrieve";
-import { findGlossaryEntry, formatGlossaryAnswer } from "../src/lib/glossary/cfpbGlossary";
+import { findGlossaryEntry, formatGlossaryAnswer, CFPB_GLOSSARY } from "../src/lib/glossary/cfpbGlossary";
 
 /** Short system prompt to save TPM; no-financial-advice is enforced in chat via extra system message when needed. */
 const WILBUR_SYSTEM = `You are Wilbur, a financial literacy educator. Explain in plain language (8th–10th grade). Use bullets when helpful. Education only—never personalized financial advice. Do not recommend stocks, funds, or allocations; if asked, decline and offer general guidance (e.g. diversification, risk). Do not fabricate citations; suggest IRS, state revenue, FDIC, CFPB for tax/benefits.`;
@@ -226,6 +226,8 @@ export default async function handler(
       question?: string;
       history?: { role: string; content: string }[];
       stateCode?: string;
+      /** Client-built excerpt from lesson (headings + bullets) to ground highlight answers. */
+      excerptBlock?: string;
     };
     headers?: { [k: string]: string | string[] | undefined };
   },
@@ -272,7 +274,10 @@ export default async function handler(
   const selectedText = typeof req.body?.selectedText === "string" ? req.body.selectedText.trim() : undefined;
   let question = typeof req.body?.question === "string" ? req.body.question.trim() : undefined;
   const stateCode = typeof req.body?.stateCode === "string" ? req.body.stateCode.trim() : undefined;
+  const clientExcerptBlock = typeof req.body?.excerptBlock === "string" ? req.body.excerptBlock.trim() : undefined;
   let history = Array.isArray(req.body?.history) ? req.body.history : [];
+
+  console.log("[wilbur] mode=", mode, "selectedText=", selectedText ?? "(none)");
 
   // If client sends history with last message as user, use it as current question (avoids staleness)
   if (history.length > 0 && history[history.length - 1]?.role === "user" && typeof history[history.length - 1].content === "string") {
@@ -280,17 +285,7 @@ export default async function handler(
     history = history.slice(0, -1);
   }
 
-  // Prefer OPENAI_API_KEY_LOCAL when set (e.g. local dev) so prod and local can use different keys and avoid sharing TPM/RPM.
-  const apiKey = process.env.OPENAI_API_KEY_LOCAL || process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    console.error(`[${requestId}] OPENAI_API_KEY (or OPENAI_API_KEY_LOCAL) not set`);
-    res.status(503).json({
-      error: "AI helper is temporarily unavailable. (Service not configured.)",
-      code: "SERVICE_UNAVAILABLE",
-    });
-    return;
-  }
-
+  // Highlight: validate first, then glossary-first (before API key so glossary works when OpenAI is down)
   if (mode === "highlight") {
     if (!selectedText || selectedText.length === 0) {
       res.status(400).json({ error: "Missing or empty selectedText for highlight mode.", code: "MISSING_INPUT" });
@@ -300,6 +295,34 @@ export default async function handler(
       res.status(400).json({
         error: `Selection is too long. Please select ${MAX_HIGHLIGHT} characters or fewer.`,
         code: "INPUT_TOO_LONG",
+      });
+      return;
+    }
+    let glossaryEntry: ReturnType<typeof findGlossaryEntry> = null;
+    try {
+      if (CFPB_GLOSSARY?.length === 0) {
+        console.warn(`[wilbur] glossary is empty (length 0)`);
+      }
+      glossaryEntry = findGlossaryEntry(selectedText, CFPB_GLOSSARY);
+    } catch (e) {
+      console.warn(`[wilbur] glossary lookup threw:`, e);
+    }
+    console.log("[wilbur] glossaryHit=", Boolean(glossaryEntry), "entryTerm=", glossaryEntry?.term ?? "n/a");
+    console.log("[wilbur] path=", glossaryEntry ? "GLOSSARY" : "AI_FALLBACK");
+    if (glossaryEntry) {
+      res.status(200).json({
+        answer: formatGlossaryAnswer(glossaryEntry),
+        citations: [
+          {
+            title: "CFPB Youth Financial Education Glossary",
+            url: glossaryEntry.url,
+            domain: glossaryEntry.domain,
+            tier: glossaryEntry.tier,
+          },
+        ],
+        source: "glossary",
+        glossaryTerm: glossaryEntry.term,
+        matchedNormalized: glossaryEntry.normalized,
       });
       return;
     }
@@ -320,27 +343,17 @@ export default async function handler(
       .slice(-MAX_HISTORY);
   }
 
-  // CFPB glossary fast-path: highlight (and "What is X?" chat) — no retrieveApproved or OpenAI
-  if (mode === "highlight" && selectedText?.trim()) {
-    const glossaryHit = findGlossaryEntry(selectedText);
-    if (glossaryHit) {
-      console.log(`[${requestId}] glossary hit (highlight): ${glossaryHit.term}`);
-      res.status(200).json({
-        answer: formatGlossaryAnswer(glossaryHit),
-        citations: [
-          {
-            title: "CFPB Financial terms glossary",
-            url: glossaryHit.url,
-            domain: glossaryHit.domain,
-            tier: glossaryHit.tier,
-          },
-        ],
-        usedSourcesCount: 1,
-        source: "glossary",
-      });
-      return;
-    }
+  // OpenAI required only for chat or highlight fallback (glossary already returned above for highlight hits)
+  const apiKey = process.env.OPENAI_API_KEY_LOCAL || process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.error(`[${requestId}] OPENAI_API_KEY (or OPENAI_API_KEY_LOCAL) not set`);
+    res.status(503).json({
+      error: "AI helper is temporarily unavailable. (Service not configured.)",
+      code: "SERVICE_UNAVAILABLE",
+    });
+    return;
   }
+
   if (mode === "chat" && question?.trim()) {
     const whatIsMatch = /^what\s+is\s+(?:a\s+|an\s+)?["']?(.+?)["']?\s*\??$/i.exec(question.trim());
     const termFromQuestion = whatIsMatch?.[1]?.trim();
@@ -367,49 +380,63 @@ export default async function handler(
   }
 
   const query = mode === "highlight" ? selectedText! : question!;
-  const retrieval = retrieveApproved({
-    query,
-    userState: stateCode,
-    maxSources: 5,
-    requireTier1ForTax: true,
-  });
 
-  if (retrieval.tier1RequiredNotMet) {
-    res.status(200).json({
-      answer: "I can't confirm that from an official source. For tax or legal rules, check IRS.gov, your state revenue department, or a licensed professional.",
-      citations: [],
-      usedSourcesCount: 0,
+  let excerptBlock = "";
+  let citations: { title: string; url: string; domain: string; tier: number }[] = [];
+
+  if (mode === "highlight" && clientExcerptBlock && clientExcerptBlock.length > 0) {
+    const capped = clientExcerptBlock.length > MAX_EXCERPT_BLOCK_CHARS
+      ? clientExcerptBlock.slice(0, MAX_EXCERPT_BLOCK_CHARS) + "…"
+      : clientExcerptBlock;
+    excerptBlock =
+      `\n\nUse this lesson content to inform your answer. Stay grounded in what the lesson says. If it doesn't cover the term, say so briefly and do not invent details.\n\nLesson excerpt:\n${capped}`;
+  }
+
+  if (excerptBlock.length === 0) {
+    const retrieval = retrieveApproved({
+      query,
+      userState: stateCode,
+      maxSources: 5,
+      requireTier1ForTax: true,
     });
-    return;
-  }
-  if (retrieval.stateTier1RequiredNotMet) {
-    res.status(200).json({
-      answer: "I couldn't verify this from the official state source. For state tax rules, check your state's revenue or tax department website (e.g. tax.ny.gov, ftb.ca.gov, dor.wa.gov) or a tax professional.",
-      citations: [],
-      usedSourcesCount: 0,
-    });
-    return;
-  }
 
-  const { excerpts, citations } = retrieval;
-  if (excerpts.length === 0) {
-    console.log(`[${requestId}] retrieval returned 0 excerpts for query="${query.slice(0, 50)}" stateCode=${stateCode ?? "none"}`);
-  }
+    if (retrieval.tier1RequiredNotMet) {
+      res.status(200).json({
+        answer: "I can't confirm that from an official source. For tax or legal rules, check IRS.gov, your state revenue department, or a licensed professional.",
+        citations: [],
+        usedSourcesCount: 0,
+      });
+      return;
+    }
+    if (retrieval.stateTier1RequiredNotMet) {
+      res.status(200).json({
+        answer: "I couldn't verify this from the official state source. For state tax rules, check your state's revenue or tax department website (e.g. tax.ny.gov, ftb.ca.gov, dor.wa.gov) or a tax professional.",
+        citations: [],
+        usedSourcesCount: 0,
+      });
+      return;
+    }
 
-  // Trim each excerpt and total block to save TPM (huge saver when excerpts are long).
-  const trimmedExcerpts =
-    excerpts.length > 0
-      ? excerpts.map((e) => {
-          const text = e.text.length > MAX_EXCERPT_CHARS ? e.text.slice(0, MAX_EXCERPT_CHARS) + "…" : e.text;
-          return `[${e.title}] ${text} (Source: ${e.url})`;
-        })
-      : [];
-  let excerptBlock =
-    trimmedExcerpts.length > 0
-      ? `\n\nUse ONLY these excerpts to inform your answer. If they don't cover the question, say so and suggest the cited sources. Do not invent URLs or quotes.\n\nExcerpts:\n${trimmedExcerpts.join("\n\n")}`
-      : "";
-  if (excerptBlock.length > MAX_EXCERPT_BLOCK_CHARS) {
-    excerptBlock = excerptBlock.slice(0, MAX_EXCERPT_BLOCK_CHARS) + "\n…";
+    const { excerpts } = retrieval;
+    citations = retrieval.citations;
+    if (excerpts.length === 0) {
+      console.log(`[${requestId}] retrieval returned 0 excerpts for query="${query.slice(0, 50)}" stateCode=${stateCode ?? "none"}`);
+    }
+
+    const trimmedExcerpts =
+      excerpts.length > 0
+        ? excerpts.map((e) => {
+            const text = e.text.length > MAX_EXCERPT_CHARS ? e.text.slice(0, MAX_EXCERPT_CHARS) + "…" : e.text;
+            return `[${e.title}] ${text} (Source: ${e.url})`;
+          })
+        : [];
+    excerptBlock =
+      trimmedExcerpts.length > 0
+        ? `\n\nUse ONLY these excerpts to inform your answer. If they don't cover the question, say so and suggest the cited sources. Do not invent URLs or quotes.\n\nExcerpts:\n${trimmedExcerpts.join("\n\n")}`
+        : "";
+    if (excerptBlock.length > MAX_EXCERPT_BLOCK_CHARS) {
+      excerptBlock = excerptBlock.slice(0, MAX_EXCERPT_BLOCK_CHARS) + "\n…";
+    }
   }
 
   const cacheKeyStr = cacheKey(mode, query, lessonId, stateCode, excerptBlock);
@@ -421,6 +448,7 @@ export default async function handler(
       answer: cached.answer,
       citations: cached.citations.map((c) => ({ title: c.title, url: c.url, domain: c.domain, tier: c.tier })),
       usedSourcesCount: cached.citations.length,
+      source: "ai",
     });
     return;
   }
@@ -451,6 +479,8 @@ export default async function handler(
   }
 
   const maxTokens = mode === "highlight" ? MAX_TOKENS_HIGHLIGHT : MAX_TOKENS_CHAT;
+
+  console.log("[wilbur] calling OpenAI", { mode, key: apiKey ? "set" : "missing" });
 
   const callOpenAI = async (_attempt: number): Promise<Response> => {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -579,6 +609,7 @@ export default async function handler(
       answer: result.answer,
       citations: result.citations.map((c) => ({ title: c.title, url: c.url, domain: c.domain, tier: c.tier })),
       usedSourcesCount: result.citations.length,
+      source: "ai",
     });
   } catch (e) {
     if ((e as Error).message === "QUEUE_FULL") {

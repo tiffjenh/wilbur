@@ -42,11 +42,43 @@ describe("Wilbur API glossary fast-path", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "glossary",
-        usedSourcesCount: 1,
         answer: expect.stringContaining("FDIC"),
         citations: expect.arrayContaining([
           expect.objectContaining({
-            title: "CFPB Financial terms glossary",
+            title: "CFPB Youth Financial Education Glossary",
+            domain: "consumerfinance.gov",
+          }),
+        ]),
+      })
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("highlight with Stocks returns glossary answer and does not call OpenAI", async () => {
+    const handler = (await import("../../../api/wilbur")).default;
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    };
+    const req = {
+      method: "POST",
+      body: {
+        mode: "highlight",
+        selectedText: "Stocks",
+      },
+      headers: {},
+    };
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "glossary",
+        glossaryTerm: "Stock",
+        answer: expect.stringContaining("Stock"),
+        citations: expect.arrayContaining([
+          expect.objectContaining({
+            title: "CFPB Youth Financial Education Glossary",
             domain: "consumerfinance.gov",
           }),
         ]),

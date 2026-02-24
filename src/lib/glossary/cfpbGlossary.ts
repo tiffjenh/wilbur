@@ -30,34 +30,141 @@ function norm(s: string): string {
     .trim();
 }
 
-/** Same normalization used for glossary keys; use in API for matching. */
-export function normalizeForGlossary(s: string): string {
-  return s
-    .toLowerCase()
+/**
+ * Normalize for lookup:
+ * - lowercase, trim, remove surrounding quotes, convert smart quotes
+ * - collapse whitespace, strip trailing punctuation (including } ] — – and similar)
+ * - remove most punctuation but keep internal spaces
+ * - normalize common variants like 401(k) -> 401k
+ */
+export function normalizeForGlossary(input: string): string {
+  if (!input) return "";
+  // Normalize unicode spaces (e.g. non-breaking \u00A0) to regular space
+  let s = input
+    .replace(/\u00A0/g, " ")
     .trim()
-    .replace(/^["""'\s]+|["""'\s]+$/g, "")
-    .replace(/\s+/g, " ")
-    .replace(/[.,;:!?]+$/g, "")
-    .replace(/\((.*?)\)/g, " $1 ")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/[""]/g, '"')
+    .replace(/['']/g, "'")
+    .replace(/^["']+|["']+$/g, "")
+    .trim()
+    .toLowerCase();
+
+  // Normalize 401(k) / 401k / 401 k
+  s = s.replace(/401\s*\(\s*k\s*\)/gi, "401k");
+  s = s.replace(/\b401\s+k\b/g, "401k");
+
+  // Strip trailing punctuation: . , ; : ! ? ) ] } and em-dash, en-dash
+  s = s.replace(/[.,;:!?)\]\}\s\-–—]+$/g, "");
+
+  // Convert connectors to spaces
+  s = s.replace(/[_/]+/g, " ");
+
+  // Remove most punctuation but keep alphanumerics and spaces (hyphens/dashes become spaces)
+  s = s.replace(/[-–—]+/g, " ");
+  s = s.replace(/[^a-z0-9\s]+/g, "");
+
+  // Collapse whitespace
+  s = s.replace(/\s+/g, " ").trim();
+
+  return s;
 }
 
+/** Alias map: user input (normalized) -> glossary index key (normalized form from glossary). */
+const GLOSSARY_ALIASES: Record<string, string> = {
+  stocks: "stock",
+  stock: "stock",
+  shares: "stock",
+  share: "stock",
+  bonds: "bond",
+  bond: "bond",
+  "credit score": "credit score",
+  "fico score": "credit score",
+  fico: "credit score",
+  apr: "apr annual percentage rate",
+  atm: "atm automated teller machine",
+  ira: "ira",
+  "roth ira": "roth ira",
+  "529 plan": "529 plan",
+  "529 plans": "529 plan",
+};
+
+/** Lightweight singular/plural for simple nouns (conservative to avoid weird matches). */
+function singularize(s: string): string {
+  if (s.endsWith("ies") && s.length > 3) return s.slice(0, -3) + "y";
+  if (s.endsWith("es") && s.length > 3) return s.slice(0, -2);
+  if (s.endsWith("s") && s.length > 2) return s.slice(0, -1);
+  return s;
+}
+
+function buildIndex(glossary: GlossaryEntry[]): Map<string, GlossaryEntry> {
+  const byNorm = new Map<string, GlossaryEntry>();
+  for (const e of glossary) {
+    const norm = normalizeForGlossary(e.normalized || e.term);
+    if (norm) byNorm.set(norm, e);
+  }
+  return byNorm;
+}
+
+/**
+ * Find glossary entry:
+ * 1) exact match on normalized input
+ * 2) alias match
+ * 3) singular/plural fallback
+ * 4) best-effort token containment (multi-word terms, e.g. "Federal Deposit Insurance Corporation (FDIC)" -> FDIC)
+ */
 export function findGlossaryEntry(input: string, glossary: GlossaryEntry[] = CFPB_GLOSSARY): GlossaryEntry | null {
   if (!input?.trim()) return null;
-  const exact = normalizeForGlossary(input);
-  let entry = glossary.find((e) => e.normalized === exact) ?? null;
-  if (entry) return entry;
-  const stripped = input.replace(/^["""'\s]+|["""'\s]+$/g, "").trim();
-  const bestEffort = normalizeForGlossary(stripped);
-  entry = glossary.find((e) => e.normalized === bestEffort) ?? null;
-  if (entry) return entry;
-  const tokens = bestEffort.split(/\s+/).filter(Boolean);
-  if (tokens.length >= 1) {
-    const asPhrase = tokens.join(" ");
-    entry = glossary.find((e) => e.normalized === asPhrase) ?? null;
+  const list = glossary ?? CFPB_GLOSSARY;
+  if (!list?.length) return null;
+
+  const normInput = normalizeForGlossary(input);
+  if (!normInput) return null;
+
+  const idx = buildIndex(list);
+
+  // 1) Exact
+  const exact = idx.get(normInput);
+  if (exact) return exact;
+
+  // 2) Alias -> exact
+  const aliasKey = GLOSSARY_ALIASES[normInput] ?? GLOSSARY_ALIASES[singularize(normInput)];
+  if (aliasKey) {
+    const aliasNorm = normalizeForGlossary(aliasKey);
+    const aliasHit = idx.get(aliasNorm);
+    if (aliasHit) return aliasHit;
   }
-  return entry;
+
+  // 3) Singular/plural fallback
+  const singular = singularize(normInput);
+  if (singular !== normInput) {
+    const hit = idx.get(singular);
+    if (hit) return hit;
+    const alias2 = GLOSSARY_ALIASES[singular];
+    if (alias2) {
+      const aliasNorm2 = normalizeForGlossary(alias2);
+      const aliasHit2 = idx.get(aliasNorm2);
+      if (aliasHit2) return aliasHit2;
+    }
+  }
+
+  // 4) Best-effort: multi-word input -> try each token (prefer short/acronym-like)
+  const tokens = normInput.split(" ").filter(Boolean);
+  if (tokens.length > 1) {
+    const tokenPriority = [...tokens].sort((a, b) => (a.length <= 4 ? 0 : 1) - (b.length <= 4 ? 0 : 1));
+    for (const t of tokenPriority) {
+      const tNorm = normalizeForGlossary(t);
+      const hit = idx.get(tNorm);
+      if (hit) return hit;
+      const aliasT = GLOSSARY_ALIASES[tNorm];
+      if (aliasT) {
+        const aliasTNorm = normalizeForGlossary(aliasT);
+        const aliasHitT = idx.get(aliasTNorm);
+        if (aliasHitT) return aliasHitT;
+      }
+    }
+  }
+
+  return null;
 }
 
 export function formatGlossaryAnswer(entry: GlossaryEntry): string {

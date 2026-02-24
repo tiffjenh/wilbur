@@ -1,27 +1,34 @@
 /**
  * useLearningPath — React hook for the personalized lesson path.
+ * Uses curriculum.ts as the lesson source. Recommendation affects ordering + highlighting only (no locking).
  *
  * Returns:
- *   lessons      — ordered ScoredLesson[] (up to maxLessons)
- *   isLoading    — true during initial load
- *   completed    — set of completed lesson ids
- *   getReasons   — (lessonId) → top 3 human-readable "why" strings
- *   getTopReason — (lessonId) → single best reason string for inline display
- *   handleFeedback — record thumbs up/down/already know + regenerate path
- *   handleComplete — mark lesson done + regenerate path
- *   refresh      — re-score and regenerate
+ *   lessons      — ordered list: recommended first, then saved (curriculum lesson + meta)
+ *   recommendedLessons — ranked recommended only
+ *   savedLessons — user-added not already in recommended
+ *   isLoading, completed, getReasons, getTopReason, etc.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LESSON_CATALOG, LESSON_CATALOG_BY_ID } from "@/content/lessons/lessonCatalog";
-import { generateLearningPath, getScoredCandidates, type GenerateOpts } from "@/lib/recommendation/generatePath";
-import type { ScoredLesson, LessonFeedback } from "@/lib/recommendation/types";
+import { CURRICULUM } from "@/lib/curriculum/curriculum";
+import type { Lesson as CurriculumLesson } from "@/lib/curriculum/curriculum";
+import type { LessonFeedback } from "@/lib/recommendation/types";
 import { computePersonaTags } from "@/lib/recommendation/profileTags";
-import { getLearningTier } from "@/lib/recommendation/scoring";
 import { loadCompletedSync, loadFeedbackSync, markComplete, saveFeedback } from "@/lib/storage/lessonProgress";
 import { loadUserAddedSync, loadUserAdded } from "@/lib/storage/userAddedLessons";
-import { toQuestionnaireAnswers } from "@/lib/recommendation/adapter";
-import { loadAnswersFromStorage } from "@/lib/recommendation/adapter";
+import { toQuestionnaireAnswers, loadAnswersFromStorage } from "@/lib/recommendation/adapter";
 import { LS_LEARNING_MODE } from "@/lib/onboardingSchema";
+import { computePersonalizationProfile } from "@/lib/personalization/scoring";
+import { recommendLessons, getLessonScoreAndReasons, type CurriculumLessonForRecommend } from "@/lib/personalization/recommend";
+
+const CURRICULUM_BY_ID: Record<string, CurriculumLesson> = Object.fromEntries(
+  CURRICULUM.lessons.map((l) => [l.id, l]),
+);
+
+function toRecommendShape(c: CurriculumLesson): CurriculumLessonForRecommend {
+  return { id: c.id, level: c.level, tags: c.tags, prerequisites: c.prerequisites };
+}
+
+const CURRICULUM_FOR_RECOMMEND: CurriculumLessonForRecommend[] = CURRICULUM.lessons.map(toRecommendShape);
 
 /* ── Human-readable "Why recommended" copy ──────────────────── */
 
@@ -64,7 +71,10 @@ export interface UseLearningPathOptions {
   maxLessons?: number;
 }
 
-export interface LessonWithMeta extends ScoredLesson {
+/** Display shape: curriculum lesson + scoring meta (no locking). */
+export interface LessonWithMeta extends CurriculumLesson {
+  _score: number;
+  _reasons: string[];
   isCompleted: boolean;
 }
 
@@ -112,59 +122,69 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
   const generate = useCallback(() => {
     setPathError(null);
     const completedList = loadCompletedSync();
-    const feedbackMap   = loadFeedbackSync();
-    const userAddedIds  = loadUserAddedSync();
+    const userAddedIds = loadUserAddedSync();
 
     const isBrowseMode =
       typeof localStorage !== "undefined" && localStorage.getItem(LS_LEARNING_MODE) === "browse";
 
     try {
-      let scored: ScoredLesson[];
+      const answers = loadAnswersFromStorage() ?? toQuestionnaireAnswers({});
+      const input = {
+        debt: answers.debt,
+        emergencySavings: answers.emergencySavings,
+        investedBefore: answers.investedBefore,
+        goals3to5: answers.goals3to5,
+        goalsThisYear: answers.goalsThisYear,
+        topics: answers.topics,
+        confidence: answers.confidence,
+        stateCode: answers.stateCode,
+      };
+      const profile = computePersonalizationProfile(isBrowseMode ? {} : input);
+      const orderedIds = recommendLessons(profile, CURRICULUM_FOR_RECOMMEND);
 
-      if (isBrowseMode) {
-        // Browse mode: no personalization, all lessons unlocked as "recommended" (catalog order)
-        scored = LESSON_CATALOG.map((l) => ({
-          ...l,
-          _score: 0,
-          _reasons: [],
-        }));
-      } else {
-        const answers = loadAnswersFromStorage() ?? toQuestionnaireAnswers({});
-        const genOpts: GenerateOpts = {
-          maxLessons,
-          completedLessonIds: completedList,
-          feedbackMap,
-        };
-        scored = generateLearningPath(LESSON_CATALOG, answers, genOpts);
-      }
+      const completedSet = new Set(completedList);
+      const recommendedIdsOrdered = orderedIds.filter((id) => !completedSet.has(id)).slice(0, maxLessons);
+      const recommendedIds = new Set(recommendedIdsOrdered);
 
-      const recommendedIds = new Set(scored.map(l => l.id));
+      const savedCurriculum = userAddedIds
+        .filter((id) => !recommendedIds.has(id))
+        .map((id) => CURRICULUM_BY_ID[id])
+        .filter(Boolean);
 
-      // User-added not already in recommended → "Saved / Added by you"
-      const savedFromCatalog = userAddedIds
-        .filter(id => !recommendedIds.has(id))
-        .map(id => LESSON_CATALOG_BY_ID[id])
-        .filter(Boolean) as ScoredLesson[];
-
-      const savedWithMeta: LessonWithMeta[] = savedFromCatalog.map(l => ({
+      const savedWithMeta: LessonWithMeta[] = savedCurriculum.map((l) => ({
         ...l,
         _score: 0,
         _reasons: [],
         isCompleted: completedList.includes(l.id),
       }));
 
-      const recommendedWithMeta: LessonWithMeta[] = scored.map(l => ({
-        ...l,
-        isCompleted: completedList.includes(l.id),
-      }));
-
-      const completedSet = new Set(completedList);
-      const mergedLessons = [...recommendedWithMeta, ...savedWithMeta];
-
       const newReasonsMap: Record<string, string[]> = {};
-      for (const l of scored) {
-        newReasonsMap[l.id] = l._reasons;
-      }
+      const recommendedWithMeta: LessonWithMeta[] = recommendedIdsOrdered.map((id) => {
+        const cur = CURRICULUM_BY_ID[id];
+        const recShape = cur ? toRecommendShape(cur) : null;
+        const { score, reasons } = recShape
+          ? getLessonScoreAndReasons(recShape, profile)
+          : { score: 0, reasons: [] as string[] };
+        newReasonsMap[id] = reasons;
+        if (cur) {
+          return { ...cur, _score: score, _reasons: reasons, isCompleted: completedList.includes(id) };
+        }
+        return {
+          id,
+          title: id,
+          domainId: "",
+          level: "beginner" as const,
+          tags: [],
+          prerequisites: [],
+          estimatedMinutes: 0,
+          formatHints: [],
+          _score: score,
+          _reasons: reasons,
+          isCompleted: completedList.includes(id),
+        } as LessonWithMeta;
+      });
+
+      const mergedLessons = [...recommendedWithMeta, ...savedWithMeta];
       reasonsMap.current = newReasonsMap;
 
       setCompleted(completedSet);
@@ -173,38 +193,36 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
       setSavedLessons(savedWithMeta);
       setIsLoading(false);
 
-      if (isDev && !isBrowseMode) {
-        const answers = loadAnswersFromStorage() ?? toQuestionnaireAnswers({});
-        const genOpts: GenerateOpts = { maxLessons, completedLessonIds: completedList, feedbackMap };
-        const top10 = getScoredCandidates(LESSON_CATALOG, answers, genOpts).slice(0, 10);
-        const tier = getLearningTier(answers);
+      if (isDev) {
         const pathLessons = recommendedWithMeta.map((l) => ({
           id: l.id,
           title: l.title,
           reasons: l._reasons ?? [],
         }));
+        const top10 = recommendedIdsOrdered.slice(0, 10).map((id) => {
+          const cur = CURRICULUM_BY_ID[id];
+          const recShape = cur ? toRecommendShape(cur) : null;
+          const { score, reasons } = recShape
+            ? getLessonScoreAndReasons(recShape, profile)
+            : { score: 0, reasons: [] as string[] };
+          return { id, title: cur?.title ?? id, score, reasons };
+        });
         setDebugInfo({
-          rawAnswers: answers as unknown as Record<string, unknown>,
-          personaTags: computePersonaTags(answers),
-          tier,
+          rawAnswers: (isBrowseMode ? { learningMode: "browse" } : answers) as unknown as Record<string, unknown>,
+          personaTags: isBrowseMode ? [] : computePersonaTags(answers),
+          tier: isBrowseMode ? "browse" : profile.targetLevel,
           pathLessons,
           top10Scores: top10,
         });
-        console.log("[Learning Path]", {
-          tier,
-          pathLessonIds: pathLessons.map((p) => p.id),
-          pathLessonTitles: pathLessons.map((p) => p.title),
-          why: pathLessons.map((p) => ({ id: p.id, topReason: p.reasons[0] ?? "" })),
-          storedAnswers: answers,
-        });
-      } else if (isDev && isBrowseMode) {
-        setDebugInfo({
-          rawAnswers: { learningMode: "browse" },
-          personaTags: [],
-          tier: "browse",
-          pathLessons: recommendedWithMeta.map((l) => ({ id: l.id, title: l.title, reasons: [] })),
-          top10Scores: [],
-        });
+        if (!isBrowseMode) {
+          console.log("[Learning Path]", {
+            tier: profile.targetLevel,
+            pathLessonIds: pathLessons.map((p) => p.id),
+            pathLessonTitles: pathLessons.map((p) => p.title),
+            why: pathLessons.map((p) => ({ id: p.id, topReason: p.reasons[0] ?? "" })),
+            storedAnswers: answers,
+          });
+        }
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : "Path generation failed";

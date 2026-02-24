@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Icon } from "../ui/Icon";
 import { CitationsList } from "../ui/CitationsList";
+import { findGlossaryEntry, formatGlossaryAnswer } from "@/lib/glossary/cfpbGlossary";
 
 const WILBUR_API = "/api/wilbur";
 const RATE_LIMIT_MS = 2000;
@@ -16,6 +17,8 @@ const BORDER_LIGHT = "#e2dcd2";
 interface TutorPanelProps {
   selectedText?: string;
   lessonId?: string;
+  /** Compact excerpt from current lesson (headings + bullets) to ground AI when glossary misses. */
+  excerptBlock?: string;
   visible?: boolean;
   open?: boolean;
   onClose?: () => void;
@@ -50,6 +53,7 @@ export interface WilburCitation {
 export const TutorPanel: React.FC<TutorPanelProps> = ({
   selectedText,
   lessonId,
+  excerptBlock,
   visible: visibleProp = true,
   open: controlledOpen,
   onClose,
@@ -79,7 +83,10 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
   }, [selectedText, isControlled]);
 
   const callWilbur = useCallback(
-    async (mode: "highlight" | "chat", payload: { selectedText?: string; question?: string; history?: Message[] }) => {
+    async (
+      mode: "highlight" | "chat",
+      payload: { selectedText?: string; question?: string; history?: Message[]; excerptBlock?: string }
+    ) => {
       if (abortRef.current) {
         abortRef.current.abort();
       }
@@ -99,6 +106,7 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
       const body = JSON.stringify({
         mode,
         lessonId: lessonId ?? undefined,
+        ...(mode === "highlight" && payload.excerptBlock !== undefined ? { excerptBlock: payload.excerptBlock } : {}),
         ...payload,
       });
 
@@ -157,6 +165,10 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
           if (isDev) console.warn("[TutorPanel] API error", res.status, data, responseText?.slice(0, 300));
           return;
         }
+        // Glossary or any successful highlight: clear prior AI error so we don't show "AI unavailable" for glossary hits
+        if (data?.source === "glossary" || (mode === "highlight" && typeof data?.answer === "string")) {
+          setAiError(null);
+        }
         const answer = typeof data?.answer === "string" ? data.answer : "";
         const rawCitations = Array.isArray(data?.citations) ? data.citations : [];
         const nextCitations = rawCitations.map((c: { title?: string; url?: string; domain?: string; tier?: number }) => ({
@@ -181,7 +193,7 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
         abortRef.current = null;
       }
     },
-    [lessonId]
+    [lessonId, excerptBlock]
   );
 
   useEffect(() => {
@@ -212,14 +224,34 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
     highlightDebounceRef.current = setTimeout(() => {
       highlightDebounceRef.current = null;
       if (text !== lastHighlightedRef.current) {
+        lastHighlightedRef.current = text;
+
+        const glossaryEntry = findGlossaryEntry(text);
+        if (glossaryEntry) {
+          setHighlightAnswer(formatGlossaryAnswer(glossaryEntry));
+          setCitations([
+            {
+              title: "CFPB Youth Financial Education Glossary",
+              url: glossaryEntry.url,
+              domain: glossaryEntry.domain,
+              tier: glossaryEntry.tier,
+            },
+          ]);
+          lastHighlightTimeRef.current = Date.now();
+          setThinking(false);
+          return;
+        }
+
         const now = Date.now();
         if (now - lastHighlightTimeRef.current < HIGHLIGHT_COOLDOWN_MS) {
           return;
         }
         if (abortRef.current) abortRef.current.abort();
-        lastHighlightedRef.current = text;
         lastHighlightTimeRef.current = now;
-        callWilbur("highlight", { selectedText: text });
+        callWilbur("highlight", {
+          selectedText: text,
+          excerptBlock: excerptBlock ?? "",
+        });
       }
     }, HIGHLIGHT_DEBOUNCE_MS);
 
@@ -229,7 +261,7 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
         highlightDebounceRef.current = null;
       }
     };
-  }, [selectedText, callWilbur]);
+  }, [selectedText, callWilbur, excerptBlock]);
 
   const handleAsk = useCallback(() => {
     const q = inputText.trim();
@@ -345,6 +377,12 @@ export const TutorPanel: React.FC<TutorPanelProps> = ({
             <div style={{ marginBottom: 14, padding: "10px 12px", backgroundColor: "#f8f6f0", borderRadius: "var(--radius-md)", fontSize: "var(--text-sm)", color: "var(--color-text-secondary)" }}>
               Select a shorter phrase (under {MAX_HIGHLIGHT_CHARS} characters) to get an explanation.
             </div>
+          )}
+
+          {!highlightPrompt && !thinking && messages.length === 0 && !aiError && (
+            <p style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)", margin: 0 }}>
+              Highlight a term to get help.
+            </p>
           )}
 
           {highlightPrompt && highlightAnswer && !thinking && (

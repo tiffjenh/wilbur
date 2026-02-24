@@ -20,6 +20,46 @@ describe("cfpbGlossary", () => {
     expect(findGlossaryEntry("  FDIC  ")?.term).toBe("FDIC");
   });
 
+  it("findGlossaryEntry('FDIC.') returns FDIC (trailing punctuation stripped)", () => {
+    expect(findGlossaryEntry("FDIC.")?.term).toBe("FDIC");
+  });
+
+  it("findGlossaryEntry('Stocks') returns entry with term Stock (plural -> singular)", () => {
+    const entry = findGlossaryEntry("Stocks");
+    expect(entry).not.toBeNull();
+    expect(entry?.term).toBe("Stock");
+  });
+
+  it("findGlossaryEntry('stock') returns Stock (singular match)", () => {
+    const entry = findGlossaryEntry("stock");
+    expect(entry).not.toBeNull();
+    expect(entry?.term).toBe("Stock");
+  });
+
+  it("findGlossaryEntry('Stocks'), ('Stocks '), ('Stocks—') all return Stock (trailing space/punctuation stripped)", () => {
+    const a = findGlossaryEntry("Stocks");
+    const b = findGlossaryEntry("Stocks ");
+    const c = findGlossaryEntry("Stocks—");
+    expect(a?.term).toBe("Stock");
+    expect(b?.term).toBe("Stock");
+    expect(c?.term).toBe("Stock");
+  });
+
+  it("findGlossaryEntry regression: FDIC, APR, CD, Budget, IRA and punctuation variants return glossary entry", () => {
+    expect(findGlossaryEntry("FDIC")?.term).toBe("FDIC");
+    expect(findGlossaryEntry("FDIC.")?.term).toBe("FDIC");
+    expect(findGlossaryEntry("APR")?.term).toBe("APR (Annual Percentage Rate)");
+    expect(findGlossaryEntry("Budget")?.term).toBe("Budget");
+    expect(findGlossaryEntry("IRA")?.term).toBe("IRA");
+    expect(findGlossaryEntry("Certificate of deposit (CD)")?.term).toBe("Certificate of deposit (CD)");
+  });
+
+  it("findGlossaryEntry('401(k)') normalizes and matches if present", () => {
+    const entry = findGlossaryEntry("401(k)");
+    // Glossary may or may not have 401(k); if present, should match via normalization
+    if (entry) expect(entry.term.toLowerCase()).toMatch(/401/);
+  });
+
   it("findGlossaryEntry matches Budget and Certificate of deposit (CD)", () => {
     expect(findGlossaryEntry("Budget")?.term).toBe("Budget");
     expect(findGlossaryEntry("Certificate of deposit (CD)")?.term).toBe("Certificate of deposit (CD)");

@@ -113,11 +113,18 @@ export interface ToggleComparisonBlock {
   note?: string;
 }
 
+export interface ChartPlaceholderBlock {
+  type: "chart-placeholder";
+  title?: string;
+  subtitle?: string;
+}
+
 export type LessonBlock =
   | HeroBlock
   | BulletListBlock
   | CalloutBlock
   | ChartBlock
+  | ChartPlaceholderBlock
   | ComparisonBlock
   | ExampleBlock
   | InteractiveSliderBlock

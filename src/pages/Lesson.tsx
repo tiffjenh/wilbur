@@ -1,21 +1,65 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { lessonContents, roadmapLessons, categories } from "@/lib/stubData";
+import { CURRICULUM } from "@/lib/curriculum/curriculum";
+import type { Lesson as CurriculumLesson } from "@/lib/curriculum/curriculum";
+import { getLessonContent, buildLessonExcerpt } from "@/lib/lessons/content";
+import type { LessonBlock } from "@/lib/lessons/content";
 import { useAuth } from "@/contexts/AuthContext";
-import { getBlockLesson } from "@/content/lessons";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TutorPanel } from "@/components/layout/TutorPanel";
 import { Icon } from "@/components/ui/Icon";
-import { CitationsList } from "@/components/ui/CitationsList";
 import { AccountPopup } from "@/components/ui/Modal";
 import { POST_ONBOARDING_PROMPT_SIGNUP } from "@/lib/onboardingSchema";
 import { BlockRenderer } from "@/components/lessonBlocks/BlockRenderer";
 import { HighlightAI } from "@/components/highlightAI/HighlightAI";
-import { markComplete, saveFeedback } from "@/lib/storage/lessonProgress";
+import { markComplete } from "@/lib/storage/lessonProgress";
 import { shouldWarnLesson } from "@/lib/recommendation/scoring";
 import { LESSON_CATALOG_BY_ID } from "@/content/lessons/lessonCatalog";
 import { loadAnswersFromStorage, toQuestionnaireAnswers } from "@/lib/recommendation/adapter";
 import { loadFeedbackSync } from "@/lib/storage/lessonProgress";
+import type { LessonBlock as LegacyLessonBlock } from "@/content/lessonTypes";
+
+/** Map lib/lessons/content blocks to content/lessonTypes blocks for BlockRenderer. */
+function contentBlockToLegacy(block: LessonBlock): LegacyLessonBlock | null {
+  switch (block.type) {
+    case "bullets":
+      return { type: "bullet-list", heading: block.heading, items: block.items, icon: block.icon };
+    case "callout":
+      return { type: "callout", tone: block.tone, heading: block.heading, text: block.text };
+    case "comparisonTable":
+      return { type: "comparison", heading: block.heading, left: block.left, right: block.right, note: block.note };
+    case "steps":
+      return {
+        type: "bullet-list",
+        heading: block.heading,
+        items: block.steps.map((s, i) => `${i + 1}. ${s}`),
+        icon: "arrow",
+      };
+    case "scenario":
+      return {
+        type: "example",
+        heading: block.heading,
+        scenario: block.scenario,
+        breakdown: block.breakdown,
+        outcome: block.outcome,
+      };
+    case "keyTakeaways":
+      return {
+        type: "bullet-list",
+        heading: block.heading ?? "Key takeaways",
+        items: block.items,
+        icon: "check",
+      };
+    case "chartPlaceholder":
+      return { type: "chart-placeholder", title: block.title, subtitle: block.subtitle };
+    default:
+      return null;
+  }
+}
+
+const BLOCK_RADIUS = 12;
+const BLOCK_PADDING = "20px 24px";
+const BLOCK_MB = 16;
 
 export const Lesson: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -35,7 +79,6 @@ export const Lesson: React.FC = () => {
   });
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // When user highlights text, always open the panel (override closed state)
   useEffect(() => {
     if (selectedText?.trim()) {
       setTutorOpen(true);
@@ -55,29 +98,27 @@ export const Lesson: React.FC = () => {
     } catch { /* ignore */ }
   }, [user]);
 
-  // Try block-based lesson first, fall back to legacy
-  const blockLesson = slug ? getBlockLesson(slug) : null;
-  const legacyLesson = slug ? lessonContents[slug] : null;
+  const curriculumLesson = slug ? CURRICULUM.lessons.find((l) => l.id === slug) ?? null : null;
+  const content = slug ? getLessonContent(slug) : null;
+  const excerptBlock = content ? buildLessonExcerpt(content) : "";
 
-  const allLessons = categories.flatMap((c) => c.lessons);
-  const sidebarLessons = legacyLesson
-    ? allLessons.filter((l) => l.category === legacyLesson.category).length > 2
-      ? allLessons.filter((l) => l.category === legacyLesson.category)
-      : roadmapLessons
-    : roadmapLessons;
+  const sidebarLessons = curriculumLesson
+    ? CURRICULUM.lessons.filter((l) => l.domainId === curriculumLesson.domainId)
+    : CURRICULUM.lessons.slice(0, 12);
+  const sidebarItems = sidebarLessons.map((l, i) => ({
+    id: l.id,
+    slug: l.id,
+    title: l.title,
+    category: l.tags[0] ?? "",
+    duration: `${l.estimatedMinutes} min`,
+    status: "available" as const,
+    order: i + 1,
+  }));
 
   const handleMarkComplete = useCallback(() => {
     if (slug) markComplete(slug);
     navigate("/learning");
   }, [slug, navigate]);
-
-  const handleFeedback = useCallback(async (type: "more_like_this" | "not_relevant" | "already_know_this") => {
-    if (!slug) return;
-    await saveFeedback(slug, type);
-    if (type === "already_know_this") {
-      await markComplete(slug);
-    }
-  }, [slug]);
 
   const catalogLesson = slug ? LESSON_CATALOG_BY_ID[slug] : null;
   const answers = loadAnswersFromStorage() ?? toQuestionnaireAnswers({});
@@ -87,8 +128,7 @@ export const Lesson: React.FC = () => {
     shouldWarnLesson(catalogLesson, answers, feedbackMap) &&
     !dismissedAdvancedWarning;
 
-  /* ── Lesson not found ── */
-  if (!blockLesson && !legacyLesson) {
+  if (!curriculumLesson) {
     return (
       <div style={{ padding: "var(--space-8) var(--space-6)", textAlign: "center" }}>
         <h2 style={{ fontFamily: "var(--font-serif)", marginBottom: "var(--space-4)" }}>Lesson not found</h2>
@@ -97,26 +137,24 @@ export const Lesson: React.FC = () => {
     );
   }
 
-  const lessonTitle = blockLesson?.title ?? legacyLesson?.title ?? "";
-  const lessonCategory = blockLesson?.tags[0] ?? legacyLesson?.category ?? "";
-  const lessonDuration = blockLesson ? `${blockLesson.estimatedTime} min` : legacyLesson?.duration ?? "";
+  const lessonTitle = curriculumLesson.title;
+  const lessonCategory = curriculumLesson.tags[0] ?? curriculumLesson.domainId;
+  const lessonDuration = `${curriculumLesson.estimatedMinutes} min`;
+  const legacyBlocks = content ? content.blocks.map(contentBlockToLegacy).filter((b): b is LegacyLessonBlock => b != null) : [];
 
   return (
     <>
       <div className="page-enter" style={{ display: "flex", height: "calc(100vh - var(--nav-height))" }}>
-        {/* Left Sidebar */}
         <Sidebar
           title="Your Path"
-          subtitle={`${roadmapLessons.filter(l => l.status === "completed").length} lessons personalized for you`}
-          lessons={sidebarLessons}
+          subtitle={`${sidebarItems.length} lessons in this area`}
+          lessons={sidebarItems}
         />
 
-        {/* Main content */}
         <div
           ref={contentRef}
           style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: "var(--space-8)" }}
         >
-          {/* Soft warning when lesson is advanced for profile */}
           {showAdvancedWarning && (
             <div
               style={{
@@ -151,180 +189,103 @@ export const Lesson: React.FC = () => {
             </div>
           )}
 
-          {/* Feedback action row */}
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-6)", flexWrap: "wrap" }}>
-            {[
-              { icon: "thumbs-up" as const, label: "more like this", type: "more_like_this" as const },
-              { icon: "thumbs-down" as const, label: "not relevant", type: "not_relevant" as const },
-              { icon: "brain" as const, label: "already know this", type: "already_know_this" as const },
-            ].map(({ icon, label, type }) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => handleFeedback(type)}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: "7px",
-                  padding: "9px 16px", borderRadius: "var(--radius-full)",
-                  border: "1px solid var(--color-border)", backgroundColor: "var(--color-surface)",
-                  fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--color-text)",
-                  cursor: "pointer", fontFamily: "var(--font-sans)", boxShadow: "var(--shadow-sm)",
-                  transition: "box-shadow var(--duration-fast), background-color var(--duration-fast)",
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface)"; }}
-              >
-                <Icon name={icon} size={14} strokeWidth={1.8} />
-                {label}
-              </button>
-            ))}
-          </div>
+          <article style={{ maxWidth: tutorOpen ? "var(--content-max)" : "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", marginBottom: "var(--space-6)", paddingBottom: "var(--space-5)", borderBottom: "1px solid var(--color-border-light)" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
+                <Icon name="clock" size={14} strokeWidth={1.8} />
+                {lessonDuration}
+              </span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
+                <Icon name="graduation-cap" size={14} strokeWidth={1.8} />
+                {lessonCategory}
+              </span>
+              <span style={{
+                display: "inline-flex", alignItems: "center",
+                padding: "2px 8px", borderRadius: 4,
+                backgroundColor: curriculumLesson.level === "beginner" ? "rgba(14,92,76,0.1)" : curriculumLesson.level === "intermediate" ? "rgba(255,214,176,0.4)" : "rgba(217,83,79,0.08)",
+                fontSize: "var(--text-xs)", fontWeight: 600,
+                color: curriculumLesson.level === "beginner" ? "#0E5C4C" : curriculumLesson.level === "intermediate" ? "#b07020" : "#c0392b",
+                textTransform: "capitalize",
+              }}>
+                {curriculumLesson.level}
+              </span>
+            </div>
 
-          {/* ── Block-based lesson ── */}
-          {blockLesson && (
-            <article style={{ maxWidth: tutorOpen ? "var(--content-max)" : "100%" }}>
-              {/* Metadata row */}
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", marginBottom: "var(--space-6)", paddingBottom: "var(--space-5)", borderBottom: "1px solid var(--color-border-light)" }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
-                  <Icon name="clock" size={14} strokeWidth={1.8} />
-                  {lessonDuration}
-                </span>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
-                  <Icon name="graduation-cap" size={14} strokeWidth={1.8} />
-                  {blockLesson.module.replace("module-", "Module ").toUpperCase()}
-                </span>
-                <span style={{
-                  display: "inline-flex", alignItems: "center",
-                  padding: "2px 8px", borderRadius: 4,
-                  backgroundColor: blockLesson.level === "beginner" ? "rgba(14,92,76,0.1)" : blockLesson.level === "intermediate" ? "rgba(255,214,176,0.4)" : "rgba(217,83,79,0.08)",
-                  fontSize: "var(--text-xs)", fontWeight: 600,
-                  color: blockLesson.level === "beginner" ? "#0E5C4C" : blockLesson.level === "intermediate" ? "#b07020" : "#c0392b",
-                  textTransform: "capitalize",
+            {content ? (
+              <>
+                {content.hero && (
+                  <div style={{
+                    background: "linear-gradient(135deg, #0E5C4C 0%, #1a7a68 100%)",
+                    borderRadius: BLOCK_RADIUS,
+                    padding: "32px 28px",
+                    marginBottom: BLOCK_MB,
+                    textAlign: "center",
+                    color: "#fff",
+                  }}>
+                    <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-2xl)", fontWeight: 400, margin: "0 0 8px", color: "#fff", lineHeight: 1.25 }}>
+                      {content.hero.title}
+                    </h2>
+                    {content.hero.subtitle && (
+                      <p style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-base)", color: "rgba(255,255,255,0.8)", margin: 0, lineHeight: 1.55 }}>
+                        {content.hero.subtitle}
+                      </p>
+                    )}
+                  </div>
+                )}
+                <BlockRenderer blocks={legacyBlocks} />
+              </>
+            ) : (
+              <>
+                <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-2xl)", fontWeight: 400, marginBottom: "var(--space-4)", color: "var(--color-text)" }}>
+                  {lessonTitle}
+                </h1>
+                <div style={{
+                  backgroundColor: "#fff",
+                  border: "1px solid var(--color-border-light)",
+                  borderRadius: BLOCK_RADIUS,
+                  padding: BLOCK_PADDING,
+                  marginBottom: BLOCK_MB,
+                  textAlign: "center",
+                  color: "var(--color-text-muted)",
+                  fontSize: "var(--text-base)",
+                  fontFamily: "var(--font-sans)",
+                  lineHeight: 1.6,
                 }}>
-                  {blockLesson.level}
-                </span>
-              </div>
-
-              {/* Block renderer */}
-              <BlockRenderer blocks={blockLesson.blocks} />
-
-              {/* Sources — shared CitationsList with "Why these sources?" */}
-              {blockLesson.sources.length > 0 && (
-                <CitationsList
-                  citations={blockLesson.sources.map((s) => ({
-                    title: s.name,
-                    url: s.url,
-                    domain: s.tier ? `Tier ${s.tier}` : undefined,
-                    type: s.type,
-                  }))}
-                  heading="Sources"
-                  showWhyTooltip
-                />
-              )}
-
-              {/* Disclaimer */}
-              <div style={{
-                marginTop: "var(--space-6)", padding: "var(--space-4) var(--space-5)",
-                backgroundColor: "var(--color-accent-light)",
-                borderRadius: "var(--radius-md)", border: "1px solid var(--color-accent-border)",
-                fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6,
-              }}>
-                <strong>Educational Content Only:</strong> All examples are hypothetical and for learning purposes only. This is not financial advice. Consult a licensed financial professional for advice specific to your situation.
-              </div>
-
-              {/* Navigation */}
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "var(--space-8)", paddingBottom: "var(--space-8)" }}>
-                <button
-                  onClick={handleMarkComplete}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: "8px",
-                    padding: "12px 28px", backgroundColor: "var(--color-primary)", color: "#fff",
-                    border: "none", borderRadius: "var(--radius-full)",
-                    cursor: "pointer", fontSize: "var(--text-base)", fontWeight: 600, fontFamily: "var(--font-sans)",
-                  }}
-                >
-                  Mark as Complete
-                  <Icon name="arrow-right" size={16} color="#fff" strokeWidth={2} />
-                </button>
-              </div>
-            </article>
-          )}
-
-          {/* ── Legacy text-based lesson (fallback) ── */}
-          {!blockLesson && legacyLesson && (
-            <article style={{ maxWidth: tutorOpen ? "var(--content-max)" : "100%" }}>
-              <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-3xl)", fontWeight: 400, marginBottom: "var(--space-3)", lineHeight: 1.2, color: "var(--color-text)" }}>
-                {lessonTitle}
-              </h1>
-              <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-xl)", fontWeight: 600, marginBottom: "var(--space-5)", color: "var(--color-text)", lineHeight: 1.3 }}>
-                {legacyLesson.subtitle}
-              </h2>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", marginBottom: "var(--space-6)", paddingBottom: "var(--space-5)", borderBottom: "1px solid var(--color-border-light)" }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
-                  <Icon name="clock" size={14} strokeWidth={1.8} />
-                  {lessonDuration}
-                </span>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
-                  <Icon name="graduation-cap" size={14} strokeWidth={1.8} />
-                  {lessonCategory}
-                </span>
-              </div>
-
-              {legacyLesson.sections.map((section, i) => (
-                <div key={i} style={{ marginBottom: "var(--space-6)" }}>
-                  {section.heading && (
-                    <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-lg)", fontWeight: 600, marginBottom: "var(--space-3)", color: "var(--color-text)" }}>
-                      {section.heading}
-                    </h3>
-                  )}
-                  {section.body && (
-                    <p style={{ fontSize: "var(--text-base)", lineHeight: 1.8, color: "var(--color-text-secondary)", marginBottom: section.bullets ? "var(--space-3)" : 0 }}>
-                      {section.body}
-                    </p>
-                  )}
-                  {section.bullets && (
-                    <ul style={{ paddingLeft: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                      {section.bullets.map((bullet, j) => (
-                        <li key={j} style={{ fontSize: "var(--text-base)", lineHeight: 1.7, color: "var(--color-text-secondary)" }}>
-                          {bullet}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  Content coming soon
                 </div>
-              ))}
+              </>
+            )}
 
-              <div style={{
-                marginTop: "var(--space-8)", padding: "var(--space-4) var(--space-5)",
-                backgroundColor: "var(--color-accent-light)",
-                borderRadius: "var(--radius-md)", border: "1px solid var(--color-accent-border)",
-                fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6,
-              }}>
-                <strong>Educational Example Only:</strong> All numbers and scenarios are hypothetical and for learning purposes only. This is not financial advice.
-              </div>
+            <div style={{
+              marginTop: "var(--space-6)", padding: "var(--space-4) var(--space-5)",
+              backgroundColor: "var(--color-accent-light)",
+              borderRadius: "var(--radius-md)", border: "1px solid var(--color-accent-border)",
+              fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6,
+            }}>
+              <strong>Educational Content Only:</strong> All examples are hypothetical and for learning purposes only. This is not financial advice. Consult a licensed financial professional for advice specific to your situation.
+            </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "var(--space-8)", paddingBottom: "var(--space-8)" }}>
-                <button
-                  onClick={handleMarkComplete}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: "8px",
-                    padding: "12px 28px", backgroundColor: "var(--color-primary)", color: "#fff",
-                    border: "none", borderRadius: "var(--radius-full)",
-                    cursor: "pointer", fontSize: "var(--text-base)", fontWeight: 600, fontFamily: "var(--font-sans)",
-                  }}
-                >
-                  Mark as Complete
-                  <Icon name="arrow-right" size={16} color="#fff" strokeWidth={2} />
-                </button>
-              </div>
-            </article>
-          )}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "var(--space-8)", paddingBottom: "var(--space-8)" }}>
+              <button
+                onClick={handleMarkComplete}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "8px",
+                  padding: "12px 28px", backgroundColor: "var(--color-primary)", color: "#fff",
+                  border: "none", borderRadius: "var(--radius-full)",
+                  cursor: "pointer", fontSize: "var(--text-base)", fontWeight: 600, fontFamily: "var(--font-sans)",
+                }}
+              >
+                Mark as Complete
+                <Icon name="arrow-right" size={16} color="#fff" strokeWidth={2} />
+              </button>
+            </div>
+          </article>
         </div>
 
-        {/* Right TutorPanel — close X persists to localStorage; highlight re-opens */}
         <TutorPanel
           key={slug}
           lessonId={slug}
+          excerptBlock={excerptBlock}
           selectedText={selectedText}
           visible
           open={tutorOpen}
@@ -338,7 +299,6 @@ export const Lesson: React.FC = () => {
         />
       </div>
 
-      {/* HighlightAI — floating "Ask Wilbur" near selection; onAsk opens panel and sends text to AI */}
       <HighlightAI
         containerRef={contentRef}
         onAsk={(text) => {

@@ -15,6 +15,7 @@ import type {
   QuizBlock,
   KeyTermsBlock,
   ToggleComparisonBlock,
+  ChartPlaceholderBlock,
 } from "@/content/lessonTypes";
 import {
   WilburChart,
@@ -513,6 +514,28 @@ function ToggleComparisonBlockRenderer({ heading, optionA, optionB, note }: Togg
   );
 }
 
+/* ── Chart Placeholder Block ─────────────────────────────── */
+
+function ChartPlaceholderBlockRenderer({ title, subtitle }: ChartPlaceholderBlock) {
+  return (
+    <div style={{
+      backgroundColor: "#f8f6f0",
+      border: "1px dashed #e2dcd2",
+      borderRadius: BLOCK_RADIUS,
+      padding: BLOCK_PADDING,
+      marginBottom: BLOCK_MB,
+      textAlign: "center",
+      color: "#7a7a6e",
+      fontSize: "var(--text-sm)",
+      fontFamily: "var(--font-sans)",
+    }}>
+      {title && <div style={{ fontWeight: 600, marginBottom: 4, color: "#3d3d35" }}>{title}</div>}
+      {subtitle && <div style={{ marginBottom: 8 }}>{subtitle}</div>}
+      <div>Chart placeholder</div>
+    </div>
+  );
+}
+
 /* ── Main Renderer ──────────────────────────────────────── */
 
 interface BlockRendererProps {
@@ -541,10 +564,11 @@ export function BlockRenderer({ blocks, onTextSelect }: BlockRendererProps) {
 
 function BlockItem({ block }: { block: LessonBlock }) {
   switch (block.type) {
-    case "hero":               return <HeroBlockRenderer {...block} />;
-    case "bullet-list":        return <BulletListBlockRenderer {...block} />;
-    case "callout":            return <CalloutBlockRenderer {...block} />;
-    case "chart":              return <WilburChart {...block} />;
+    case "hero":                return <HeroBlockRenderer {...block} />;
+    case "bullet-list":         return <BulletListBlockRenderer {...block} />;
+    case "callout":             return <CalloutBlockRenderer {...block} />;
+    case "chart":               return <WilburChart {...block} />;
+    case "chart-placeholder":   return <ChartPlaceholderBlockRenderer {...block} />;
     case "comparison":         return <ComparisonBlockRenderer {...block} />;
     case "example":            return <ExampleBlockRenderer {...block} />;
     case "interactive-slider": return <InteractiveSliderBlockRenderer {...block} />;
