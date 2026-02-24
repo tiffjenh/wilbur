@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminRoute } from "@/components/AdminRoute";
 import { Home } from "@/pages/Home";
 import { Dashboard } from "@/pages/Dashboard";
 import { Learning } from "@/pages/Learning";
@@ -16,6 +17,10 @@ import { OnboardingComplete } from "@/pages/OnboardingComplete";
 import { Auth } from "@/pages/Auth";
 import { AuthCallback } from "@/pages/AuthCallback";
 import { Logout } from "@/pages/Logout";
+import { AdminHome } from "@/pages/admin/AdminHome";
+import { AdminLessonsList } from "@/pages/admin/AdminLessonsList";
+import { AdminLessonEditor } from "@/pages/admin/AdminLessonEditor";
+import { AdminLessonPreview } from "@/pages/admin/AdminLessonPreview";
 
 const App: React.FC = () => {
   return (
@@ -40,6 +45,12 @@ const App: React.FC = () => {
         <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/lesson/:slug" element={<Lesson />} />
+        {/* Admin (gated by AdminRoute) */}
+        <Route path="/admin" element={<AdminRoute><AdminHome /></AdminRoute>} />
+        <Route path="/admin/lessons" element={<AdminRoute><AdminLessonsList /></AdminRoute>} />
+        <Route path="/admin/lessons/new" element={<AdminRoute><AdminLessonEditor mode="create" /></AdminRoute>} />
+        <Route path="/admin/lessons/:id" element={<AdminRoute><AdminLessonEditor mode="edit" /></AdminRoute>} />
+        <Route path="/admin/lessons/:id/preview" element={<AdminRoute><AdminLessonPreview /></AdminRoute>} />
         {/* Catch-all */}
         <Route path="*" element={<Home />} />
       </Routes>

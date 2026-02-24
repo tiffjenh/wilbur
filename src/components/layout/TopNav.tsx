@@ -5,6 +5,7 @@ import { AccountPopup } from "../ui/Modal";
 import { MascotPink } from "../ui/MascotPink";
 import { Icon, type IconName } from "../ui/Icon";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Drawer } from "../ui/Drawer";
 
 interface DropdownItem { label: string; description?: string; href: string; icon?: IconName; }
@@ -221,7 +222,8 @@ const ProfileDropdown: React.FC<{
   user: { user_metadata?: { full_name?: string }; email?: string | null };
   signOut: () => Promise<void>;
   onNavigate: (path: string) => void;
-}> = ({ user, signOut, onNavigate }) => {
+  showAdminLink?: boolean;
+}> = ({ user, signOut, onNavigate, showAdminLink }) => {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -321,6 +323,34 @@ const ProfileDropdown: React.FC<{
             animation: "profileDropdownIn 180ms var(--ease-out)",
           }}
         >
+          {showAdminLink && (
+            <Link
+              to="/admin"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                minHeight: 44,
+                padding: "9px 10px",
+                borderRadius: "var(--radius-md)",
+                fontSize: "var(--text-sm)",
+                fontWeight: 600,
+                color: "var(--color-text)",
+                textDecoration: "none",
+                fontFamily: "var(--font-sans)",
+                transition: "background-color var(--duration-fast)",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-surface-hover)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
+            >
+              <span style={{ flexShrink: 0, color: "var(--color-text-secondary)" }}>
+                <Icon name="shield" size={18} strokeWidth={1.8} />
+              </span>
+              Admin
+            </Link>
+          )}
           <Link
             to="/account"
             role="menuitem"
@@ -434,6 +464,7 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
   useEffect(() => { setOpenDropdown(null); setMobileOpen(false); }, [location.pathname]);
 
   const { user, signOut } = useAuth();
+  const { isAdmin } = useIsAdmin();
   const isAuthed = !!user;
 
   const handleLogin = useCallback(() => {
@@ -512,7 +543,7 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: showFullNav || pathname === "/" ? 0 : "auto" }}>
             {isAuthed ? (
-              <ProfileDropdown user={user} signOut={signOut} onNavigate={(path) => navigate(path)} />
+              <ProfileDropdown user={user} signOut={signOut} onNavigate={(path) => navigate(path)} showAdminLink={isAdmin} />
             ) : (
               <>
                 <Button variant="primary" size="sm" onClick={handleLogin} style={{ flexShrink: 0, fontSize: "var(--text-sm)", padding: "8px 16px" }}>
@@ -556,6 +587,9 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
           <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "10px" }}>
             {isAuthed ? (
               <>
+                {isAdmin && (
+                  <Link to="/admin" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>Admin</Link>
+                )}
                 <Link to="/account" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>Account</Link>
                 <Link to="/settings" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>Settings</Link>
                 <Button variant="outlineBlack" size="md" onClick={() => { setMobileOpen(false); signOut().then(() => navigate("/")); }} style={{ width: "100%" }}>Log out</Button>

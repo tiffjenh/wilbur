@@ -10,12 +10,14 @@ import { Icon } from "@/components/ui/Icon";
 import { AccountPopup } from "@/components/ui/Modal";
 import { POST_ONBOARDING_PROMPT_SIGNUP } from "@/lib/onboardingSchema";
 import { BlockRenderer } from "@/components/lessonBlocks/BlockRenderer";
+import { LessonRenderer } from "@/components/lesson/LessonRenderer";
 import { HighlightAI } from "@/components/highlightAI/HighlightAI";
 import { markComplete } from "@/lib/storage/lessonProgress";
 import { shouldWarnLesson } from "@/lib/recommendation/scoring";
 import { LESSON_CATALOG_BY_ID } from "@/content/lessons/lessonCatalog";
 import { loadAnswersFromStorage, toQuestionnaireAnswers } from "@/lib/recommendation/adapter";
 import { loadFeedbackSync } from "@/lib/storage/lessonProgress";
+import { getLessonBySlug, listLessons } from "@/lib/supabase/lessons";
 import type { LessonBlock as LegacyLessonBlock } from "@/content/lessonTypes";
 
 /** Map lib/lessons/content blocks to content/lessonTypes blocks for BlockRenderer. */
@@ -97,19 +99,54 @@ export const Lesson: React.FC = () => {
     } catch { /* ignore */ }
   }, [user]);
 
+  const [cmsLesson, setCmsLesson] = useState<Awaited<ReturnType<typeof getLessonBySlug>>>(null);
+  const [cmsList, setCmsList] = useState<Awaited<ReturnType<typeof listLessons>>>([]);
+
+  useEffect(() => {
+    if (!slug) return;
+    let cancelled = false;
+    getLessonBySlug(slug)
+      .then((lesson) => {
+        if (!cancelled) setCmsLesson(lesson);
+      })
+      .catch(() => {
+        if (!cancelled) setCmsLesson(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  useEffect(() => {
+    if (!cmsLesson) return;
+    let cancelled = false;
+    listLessons({ category: cmsLesson.category })
+      .then((list) => {
+        if (!cancelled) setCmsList(list);
+      })
+      .catch(() => {
+        if (!cancelled) setCmsList([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cmsLesson?.category, cmsLesson?.id]);
+
   const curriculumLesson = slug ? CURRICULUM.lessons.find((l) => l.id === slug) ?? null : null;
-  const content = slug ? getLessonContent(slug) : null;
-  const excerptBlock = content ? buildLessonExcerpt(content) : "";
+  const content = slug && !cmsLesson ? getLessonContent(slug) : null;
+  const excerptBlock = content ? buildLessonExcerpt(content) : cmsLesson ? `${cmsLesson.title}. ${(cmsLesson.hero_takeaways ?? []).join(" ")}` : "";
 
   const sidebarLessons = curriculumLesson
     ? CURRICULUM.lessons.filter((l) => l.domainId === curriculumLesson.domainId)
-    : CURRICULUM.lessons.slice(0, 12);
+    : cmsLesson
+      ? cmsList
+      : CURRICULUM.lessons.slice(0, 12);
   const sidebarItems = sidebarLessons.map((l, i) => ({
-    id: l.id,
-    slug: l.id,
+    id: "id" in l ? (l as { id: string }).id : (l as { slug: string }).slug,
+    slug: "slug" in l ? (l as { slug: string }).slug : (l as { id: string }).id,
     title: l.title,
-    category: l.tags[0] ?? "",
-    duration: `${l.estimatedMinutes} min`,
+    category: "tags" in l ? (l as { tags: string[] }).tags?.[0] ?? "" : (l as { category: string }).category,
+    duration: "estimatedMinutes" in l ? `${(l as { estimatedMinutes: number }).estimatedMinutes} min` : `${(l as { estimated_minutes: number }).estimated_minutes} min`,
     status: "available" as const,
     order: i + 1,
   }));
@@ -127,7 +164,7 @@ export const Lesson: React.FC = () => {
     shouldWarnLesson(catalogLesson, answers, feedbackMap) &&
     !dismissedAdvancedWarning;
 
-  if (!curriculumLesson) {
+  if (!cmsLesson && !curriculumLesson) {
     return (
       <div style={{ padding: "var(--space-8) var(--space-6)", textAlign: "center" }}>
         <h2 style={{ fontFamily: "var(--font-serif)", marginBottom: "var(--space-4)" }}>Lesson not found</h2>
@@ -136,10 +173,12 @@ export const Lesson: React.FC = () => {
     );
   }
 
-  const lessonTitle = curriculumLesson.title;
-  const lessonCategory = curriculumLesson.tags[0] ?? curriculumLesson.domainId;
-  const lessonDuration = `${curriculumLesson.estimatedMinutes} min`;
+  const lessonTitle = cmsLesson?.title ?? curriculumLesson?.title ?? "";
+  const lessonCategory = cmsLesson?.category ?? curriculumLesson?.tags[0] ?? curriculumLesson?.domainId ?? "";
+  const lessonDuration = cmsLesson ? `${cmsLesson.estimated_minutes} min` : curriculumLesson ? `${curriculumLesson.estimatedMinutes} min` : "";
+  const lessonLevel = cmsLesson?.level ?? curriculumLesson?.level ?? "beginner";
   const legacyBlocks = content ? content.blocks.map(contentBlockToLegacy).filter((b): b is LegacyLessonBlock => b != null) : [];
+  const useCmsContent = !!cmsLesson;
 
   return (
     <>
@@ -201,16 +240,18 @@ export const Lesson: React.FC = () => {
               <span style={{
                 display: "inline-flex", alignItems: "center",
                 padding: "2px 8px", borderRadius: 4,
-                backgroundColor: curriculumLesson.level === "beginner" ? "rgba(14,92,76,0.1)" : curriculumLesson.level === "intermediate" ? "rgba(255,214,176,0.4)" : "rgba(217,83,79,0.08)",
+                backgroundColor: lessonLevel === "beginner" ? "rgba(14,92,76,0.1)" : lessonLevel === "intermediate" ? "rgba(255,214,176,0.4)" : "rgba(217,83,79,0.08)",
                 fontSize: "var(--text-xs)", fontWeight: 600,
-                color: curriculumLesson.level === "beginner" ? "#0E5C4C" : curriculumLesson.level === "intermediate" ? "#b07020" : "#c0392b",
+                color: lessonLevel === "beginner" ? "#0E5C4C" : lessonLevel === "intermediate" ? "#b07020" : "#c0392b",
                 textTransform: "capitalize",
               }}>
-                {curriculumLesson.level}
+                {lessonLevel}
               </span>
             </div>
 
-            {content ? (
+            {useCmsContent && cmsLesson ? (
+              <LessonRenderer lesson={cmsLesson} />
+            ) : content ? (
               <>
                 {content.hero && (
                   <div style={{
@@ -255,14 +296,16 @@ export const Lesson: React.FC = () => {
               </>
             )}
 
-            <div style={{
-              marginTop: "var(--space-6)", padding: "var(--space-4) var(--space-5)",
-              backgroundColor: "var(--color-accent-light)",
-              borderRadius: "var(--radius-md)", border: "1px solid var(--color-accent-border)",
-              fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6,
-            }}>
-              <strong>Educational Content Only:</strong> All examples are hypothetical and for learning purposes only. This is not financial advice. Consult a licensed financial professional for advice specific to your situation.
-            </div>
+            {!useCmsContent && (
+              <div style={{
+                marginTop: "var(--space-6)", padding: "var(--space-4) var(--space-5)",
+                backgroundColor: "var(--color-accent-light)",
+                borderRadius: "var(--radius-md)", border: "1px solid var(--color-accent-border)",
+                fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6,
+              }}>
+                <strong>Educational Content Only:</strong> All examples are hypothetical and for learning purposes only. This is not financial advice. Consult a licensed financial professional for advice specific to your situation.
+              </div>
+            )}
 
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "var(--space-8)", paddingBottom: "var(--space-8)" }}>
               <button

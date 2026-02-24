@@ -1,0 +1,71 @@
+{
+  "slug": "stocks-101",
+  "title": "7 Things You Should Know About Stocks",
+  "subtitle": "What a share of stock is and how stock investing works",
+  "category": "Investing",
+  "track": "Stocks Fundamentals",
+  "level": "beginner",
+  "estimated_minutes": 8,
+  "hero_takeaways": [
+    "A stock is a share of ownership in a company",
+    "Prices go up and down based on supply and demand",
+    "Long-term investing can help smooth out short-term swings"
+  ],
+  "content_blocks": [
+    { "type": "heading", "level": 2, "text": "What is a stock?" },
+    { "type": "paragraph", "text": "When you buy a stock, you own a small piece of that company. If the company does well, your share can become more valuable. If it doesn't, the value can go down." },
+    { "type": "bullets", "items": [
+      "Stocks are also called shares or equity.",
+      "Companies sell stock to raise money to grow.",
+      "You can buy and sell stocks through a brokerage account."
+    ]},
+    { "type": "heading", "level": 3, "text": "Why do stock prices change?" },
+    { "type": "paragraph", "text": "Prices move based on how many people want to buy vs. sell, and on news about the company or the economy." },
+    { "type": "chartPlaceholder", "chartType": "line", "title": "Example: How a stock price might move over time", "description": "Hypothetical line chart showing ups and downs over 12 months." },
+    { "type": "callout", "variant": "tip", "title": "Keep it simple", "text": "You don't need to time the market. Many people invest regularly over time (dollar-cost averaging) to smooth out volatility." },
+    { "type": "divider" },
+    { "type": "heading", "level": 2, "text": "Key terms" },
+    { "type": "chips", "items": ["Share", "Ticker", "Dividend", "Volatility", "Portfolio"] }
+  ],
+  "example_blocks": [
+    { "type": "heading", "level": 3, "text": "Example: Alphabet (Google)" },
+    { "type": "paragraph", "text": "Alphabet Inc. (ticker: GOOGL) is a company that offers search, cloud, and other tech services. When you buy one share of Alphabet stock, you own a tiny fraction of the company." },
+    { "type": "callout", "variant": "note", "text": "This is for illustration only. We are not recommending any specific stock." }
+  ],
+  "video_blocks": [
+    { "type": "heading", "level": 3, "text": "Scene 1: What is a share?" },
+    { "type": "paragraph", "text": "Animation: A company building with many small tiles. One tile lights up — that's your share." },
+    { "type": "heading", "level": 3, "text": "Scene 2: Buying and selling" },
+    { "type": "paragraph", "text": "Animation: A simple order flow from you → brokerage → market." },
+    { "type": "heading", "level": 3, "text": "Scene 3: Price moves" },
+    { "type": "paragraph", "text": "Animation: A line chart with up/down movement and a \"time in market\" message." },
+    { "type": "heading", "level": 3, "text": "Scene 4: Diversification" },
+    { "type": "paragraph", "text": "Animation: Multiple tiles from different companies — don't put all eggs in one basket." }
+  ],
+  "quiz": {
+    "title": "Quick check",
+    "questions": [
+      {
+        "prompt": "What do you own when you buy a stock?",
+        "choices": ["A loan to the company", "A small piece (share) of the company", "A fixed interest payment", "A guarantee of profit"],
+        "correctIndex": 1,
+        "explanation": "A stock is a share of ownership in a company. If the company grows, the value of your share can grow too — but it can also go down."
+      },
+      {
+        "prompt": "Why do stock prices change?",
+        "choices": ["Only once per year", "Based on supply and demand and news", "They don't change", "Only when the company pays dividends"],
+        "correctIndex": 1,
+        "explanation": "Prices move based on how many people want to buy vs. sell and on news about the company or the economy."
+      },
+      {
+        "prompt": "Dollar-cost averaging means:",
+        "choices": ["Investing only when prices are low", "Investing a fixed amount on a schedule", "Selling everything when the market drops", "Only buying one stock"],
+        "correctIndex": 1,
+        "explanation": "Investing a set amount on a regular schedule can help smooth out the impact of market ups and downs over time."
+      }
+    ]
+  },
+  "source_citations": [
+    { "title": "SEC — What Are Stocks?", "url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/stocks", "domain": "investor.gov", "tier": 1 }
+  ]
+}
