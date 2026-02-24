@@ -33,6 +33,68 @@ const str = (v: unknown, d = ""): string => (typeof v === "string" ? v : d);
 const num = (v: unknown, d: number): number => (typeof v === "number" && !Number.isNaN(v) ? v : d);
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
+/** Minimal section shape from snapshot.sections (id, type, title, content). */
+export type MapSnapshotSection = {
+  id: string;
+  type: string;
+  title: string | null;
+  content: string;
+};
+
+/** Minimal mapped lesson (hero/sections/bottom only). Use mapSnapshotToLesson() for full CMSLessonRecord. */
+export type MapSnapshotMinimalResult = {
+  title: string;
+  content_blocks: MapSnapshotSection[];
+  example: unknown;
+  video: unknown;
+  quiz: unknown;
+};
+
+/**
+ * Map snapshot (hero, sections, bottom) to a minimal lesson shape.
+ * Returns null if snapshot is missing. For full CMSLessonRecord use mapSnapshotToLesson().
+ */
+export function mapSnapshotToLessonMinimal(snapshot: Record<string, unknown> | null | undefined): MapSnapshotMinimalResult | null {
+  if (!snapshot) return null;
+
+  const hero = (snapshot.hero != null && typeof snapshot.hero === "object" ? snapshot.hero : {}) as Record<string, unknown>;
+  const sections = Array.isArray(snapshot.sections) ? snapshot.sections : [];
+  const bottom = (snapshot.bottom != null && typeof snapshot.bottom === "object" ? snapshot.bottom : {}) as Record<string, unknown>;
+
+  const title =
+    str(hero.headline) ||
+    str(hero.title) ||
+    "Untitled";
+
+  const content_blocks: MapSnapshotSection[] =
+    sections.length > 0
+      ? sections.map((section: unknown, index: number) => {
+          const s = section != null && typeof section === "object" ? (section as Record<string, unknown>) : {};
+          return {
+            id: `section-${index}`,
+            type: str(s.type, "text"),
+            title: s.title != null ? str(s.title) : null,
+            content: str(s.content ?? s.body ?? s.text),
+          };
+        })
+      : [
+          {
+            id: "empty-placeholder",
+            type: "text",
+            title: null,
+            content: "",
+          },
+        ];
+
+  return {
+    title,
+    content_blocks,
+    example: bottom.example ?? null,
+    video: bottom.video ?? null,
+    quiz: bottom.quiz ?? null,
+  };
+}
+
 /** Map a single section item (from snapshot.sections) to one or more CMSBlocks. */
 function sectionToBlocks(section: unknown): CMSBlock[] {
   if (section == null) return [];
@@ -66,60 +128,80 @@ function sectionToBlocks(section: unknown): CMSBlock[] {
   return [];
 }
 
-/** Map snapshot shape { hero, sections, bottom } to CMSLessonRecord for LessonRenderer. */
+/** Map snapshot shape { hero, sections, bottom } or legacy { content_blocks, ... } to CMSLessonRecord for LessonRenderer. */
 export function mapSnapshotToLesson(
   snapshot: Record<string, unknown>,
   lessonId: string,
   published_at: string | null,
   updated_at: string | null
 ): CMSLessonRecord {
+  if (Array.isArray(snapshot.content_blocks) && snapshot.content_blocks.length > 0) {
+    return snapshotToRecordLegacy(lessonId, snapshot, published_at, updated_at);
+  }
+  const minimal = mapSnapshotToLessonMinimal(snapshot);
   const hero = snapshot.hero != null && typeof snapshot.hero === "object" ? (snapshot.hero as Record<string, unknown>) : {};
-  const sections = arr(snapshot.sections);
   const bottom = snapshot.bottom != null && typeof snapshot.bottom === "object" ? (snapshot.bottom as Record<string, unknown>) : {};
 
-  const title = str(hero.headline ?? hero.title ?? snapshot.title, "Untitled");
+  const title = minimal?.title ?? str(hero.headline ?? hero.title ?? snapshot.title, "Untitled");
   const subtitle = hero.subhead != null || hero.subtitle != null ? str(hero.subhead ?? hero.subtitle) : snapshot.subtitle != null ? str(snapshot.subtitle) : null;
   const hero_takeaways = arr(hero.takeaways ?? hero.items ?? hero.bullets).map((t) => (typeof t === "string" ? t : String(t))).filter(Boolean);
 
-  const content_blocks: CMSBlock[] = [];
-  for (const section of sections) {
-    content_blocks.push(...sectionToBlocks(section));
-  }
+  const content_blocks: CMSBlock[] = minimal
+    ? minimal.content_blocks.flatMap((section) => {
+        const blocks: CMSBlock[] = [];
+        if (section.title) blocks.push({ type: "heading", level: 2, text: section.title });
+        if (section.content) blocks.push({ type: "paragraph", text: section.content });
+        if (blocks.length === 0) blocks.push({ type: "paragraph", text: " " });
+        return blocks;
+      })
+    : (() => {
+        const out: CMSBlock[] = [];
+        for (const section of arr(snapshot.sections)) out.push(...sectionToBlocks(section));
+        if (out.length === 0) out.push({ type: "paragraph", text: " " });
+        return out;
+      })();
   if (content_blocks.length === 0) {
     content_blocks.push({ type: "paragraph", text: " " });
   }
 
-  const exampleArr = arr(bottom.examples ?? bottom.example_blocks);
+  const exampleArr = minimal?.example != null ? (Array.isArray(minimal.example) ? minimal.example : [minimal.example]) : arr(bottom.examples ?? bottom.example_blocks);
   const example_blocks: CMSBlock[] = [];
   for (const ex of exampleArr) {
     example_blocks.push(...sectionToBlocks(ex));
   }
 
-  const videoArr = arr(bottom.video ?? bottom.video_blocks);
+  const videoArr = minimal?.video != null ? (Array.isArray(minimal.video) ? minimal.video : [minimal.video]) : arr(bottom.video ?? bottom.video_blocks);
   const video_blocks: CMSBlock[] = [];
   for (const v of videoArr) {
     video_blocks.push(...sectionToBlocks(v));
   }
 
   let quiz: QuizSpec | null = null;
-  const quizRaw = bottom.quiz ?? snapshot.quiz;
+  const quizRaw = (minimal?.quiz != null ? minimal.quiz : null) ?? bottom.quiz ?? snapshot.quiz;
   if (quizRaw != null && typeof quizRaw === "object") {
     const q = quizRaw as Record<string, unknown>;
-    const questions = arr(q.questions);
-    if (questions.length >= 3) {
+    const questionsRaw = arr(q.questions) as unknown[];
+    if (questionsRaw.length >= 3) {
+      const q0 = questionsRaw[0];
+      const q1 = questionsRaw[1];
+      const q2 = questionsRaw[2];
       const mapQ = (oq: unknown): QuizQuestion => {
         const o = (oq != null && typeof oq === "object" ? oq : {}) as Record<string, unknown>;
-        const choices = arr(o.choices).map((c) => (typeof c === "string" ? c : String(c))).filter(Boolean);
+        const choicesArr = arr(o.choices).map((c) => (typeof c === "string" ? c : String(c))).filter(Boolean) as string[];
+        const choices =
+          choicesArr.length >= 3
+            ? choicesArr
+            : [str((o.choices as unknown[])?.[0]), str((o.choices as unknown[])?.[1]), str((o.choices as unknown[])?.[2])].map((c) => c || "Option");
         return {
           prompt: str(o.prompt),
-          choices: choices.length >= 3 ? choices : [str(o.choices?.[0]), str(o.choices?.[1]), str(o.choices?.[2])].map((c) => c || "Option"),
-          correctIndex: Math.max(0, Math.min(num(o.correctIndex, 0), 2)),
+          choices,
+          correctIndex: Math.max(0, Math.min(num(o.correctIndex, 0), choices.length - 1)),
           explanation: str(o.explanation),
         };
       };
       quiz = {
         title: str(q.title, "Quiz"),
-        questions: [mapQ(questions[0]), mapQ(questions[1]), mapQ(questions[2])],
+        questions: [mapQ(q0), mapQ(q1), mapQ(q2)],
       };
     }
   }
@@ -215,17 +297,11 @@ export async function getPublishedLesson(lessonId: string): Promise<GetPublished
 
     const row = data as unknown as PublishedLessonRow;
     const snapshot = row.snapshot as Record<string, unknown>;
-    const hasHeroSectionsBottom =
-      snapshot.hero != null || snapshot.sections != null || snapshot.bottom != null;
-    const record = hasHeroSectionsBottom
-      ? mapSnapshotToLesson(snapshot, lessonId, row.published_at ?? null, row.updated_at ?? null)
-      : snapshotToRecordLegacy(lessonId, snapshot, row.published_at ?? null, row.updated_at ?? null);
+    const record = mapSnapshotToLesson(snapshot, lessonId, row.published_at ?? null, row.updated_at ?? null);
 
-    if (isDev) {
-      const snapshotKeys = Object.keys(snapshot);
-      console.log("Loaded lesson", lessonId);
-      console.log("Version:", row.version);
-      console.log("Snapshot keys:", snapshotKeys);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Loaded lesson:", record.title);
+      console.log("Snapshot keys:", Object.keys(snapshot));
     }
 
     return {
