@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { CURRICULUM } from "@/lib/curriculum/curriculum";
 import { getLessonContent, buildLessonExcerpt } from "@/lib/lessons/content";
 import type { LessonBlock } from "@/lib/lessons/content";
