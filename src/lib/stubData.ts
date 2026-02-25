@@ -1,4 +1,6 @@
 import type { IconName } from "@/components/ui/Icon";
+import { studentLoansBasicsSnapshot } from "@/content/lessons/snapshots/student-loans-basics";
+import w2Vs1099Snapshot from "@/content/lessons/snapshots/w2-vs-1099";
 import { loadProfile } from "./personalizationEngine";
 
 export type LessonStatus = "locked" | "available" | "completed";
@@ -43,7 +45,11 @@ export const roadmapLessons: Lesson[] = [
 ];
 
 /* ── Master lesson registry: all known lessons keyed by slug ── */
-export const LESSON_REGISTRY: Record<string, Omit<Lesson, "status" | "order">> = {
+export type LessonRegistryEntry = Omit<Lesson, "status" | "order"> & {
+  description?: string;
+  snapshot?: unknown;
+};
+export const LESSON_REGISTRY: Record<string, LessonRegistryEntry> = {
   // Module A — Money Basics
   "money-map":                  { id: "a1", slug: "money-map",                  title: "Money Map: Where Your Money Goes",         category: "Money Basics",        duration: "6 min"  },
   "checking-vs-savings":        { id: "a2", slug: "checking-vs-savings",        title: "Checking vs. Savings (and What APY Means)", category: "Money Basics",       duration: "7 min"  },
@@ -64,7 +70,16 @@ export const LESSON_REGISTRY: Record<string, Omit<Lesson, "status" | "order">> =
   "credit-card-interest":       { id: "d2", slug: "credit-card-interest",       title: "Credit Cards: How Interest Actually Works", category: "Credit & Debt",      duration: "8 min"  },
   "debt-payoff-methods":        { id: "d3", slug: "debt-payoff-methods",        title: "Debt Payoff: Avalanche vs. Snowball",       category: "Credit & Debt",       duration: "9 min"  },
   "debt-vs-investing":          { id: "d4", slug: "debt-vs-investing",          title: "Debt vs. Investing: What to Do First?",    category: "Credit & Debt",       duration: "8 min"  },
-  "student-loans-basics":       { id: "d5", slug: "student-loans-basics",       title: "Student Loans: What You Need to Know",     category: "Credit & Debt",       duration: "9 min"  },
+  "student-loans-basics":       {
+    id: "student-loans-basics",
+    slug: "student-loans-basics",
+    title: "Student Loans Basics (What to Do First)",
+    category: "Credit & Debt",
+    duration: "9 min",
+    description:
+      "Understand your loan type, avoid common mistakes, and choose a safe next step without panic.",
+    snapshot: studentLoansBasicsSnapshot,
+  },
   // Module E — Investing
   "investing-101":              { id: "e1", slug: "investing-101",              title: "Investing 101: Stocks, Bonds & Funds",     category: "Investing Basics",    duration: "8 min"  },
   "risk-and-time-horizon":      { id: "e2", slug: "risk-and-time-horizon",      title: "Risk, Time, and Your Investing Timeline",  category: "Investing Basics",    duration: "7 min"  },
@@ -84,7 +99,16 @@ export const LESSON_REGISTRY: Record<string, Omit<Lesson, "status" | "order">> =
   "risk-vs-return":             { id: "r-risk",     slug: "risk-vs-return",       title: "Risk vs. Return",                        category: "Investment Basics",   duration: "7 min"  },
   "compound-interest":          { id: "r-compound", slug: "compound-interest",    title: "Compound Interest Magic",                category: "Investment Basics",   duration: "8 min"  },
   "roth-ira":                   { id: "r-roth",     slug: "roth-ira",             title: "Roth IRA: Tax-Free Retirement",          category: "Retirement Accounts", duration: "12 min" },
-  "w2-vs-1099":                 { id: "r-w2",       slug: "w2-vs-1099",           title: "W2 vs 1099: What's the Difference?",     category: "Income Types",        duration: "8 min"  },
+  "w2-vs-1099":                 {
+    id: "w2-vs-1099",
+    slug: "w2-vs-1099",
+    title: "W-2 vs 1099 (What Changes for Taxes and Benefits)",
+    category: "Income Types",
+    duration: "8 min",
+    description:
+      "Understand how W-2 and 1099 income differ, what changes for taxes and benefits, and how to avoid surprises.",
+    snapshot: w2Vs1099Snapshot,
+  },
   "renting-vs-buying":          { id: "r-rent",     slug: "renting-vs-buying",    title: "Renting vs. Buying a Home",              category: "Housing Basics",      duration: "12 min" },
   "health-insurance-101":       { id: "r-health",   slug: "health-insurance-101", title: "Health Insurance 101",                   category: "Insurance Basics",    duration: "9 min"  },
   // First Job Out of College track (flagship)

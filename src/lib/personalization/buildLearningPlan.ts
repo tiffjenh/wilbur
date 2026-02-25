@@ -43,18 +43,38 @@ export function buildLearningPlan(traits: ProfileTraits): LearningPlan {
     addReason(lessonReasons, "credit-cards-statement-balance", "You said you have credit card debt.");
   }
 
+  if (traits.hasStudentLoans) {
+    ensureIncluded(ids, "student-loans-basics");
+    addReason(lessonReasons, "student-loans-basics", "You said you have student loans.");
+  }
+
   // emergency fund unknown + low confidence => include
   if (traits.hasEmergencyFund === null && traits.confidenceLevel <= 2) {
     ensureIncluded(ids, "emergency-fund-basics");
     addReason(lessonReasons, "emergency-fund-basics", "You said you feel less confident, so we start with stability.");
   }
 
-  // W-2 => include paycheck + benefits
+  // W-2 => include paycheck + benefits + taxes filing
   if (traits.incomeTypes.includes("w2")) {
     ensureIncluded(ids, "paycheck-basics");
     ensureIncluded(ids, "work-benefits-101");
+    ensureIncluded(ids, "taxes-how-to-file");
     addReason(lessonReasons, "paycheck-basics", "You said you have a W-2 job.");
     addReason(lessonReasons, "work-benefits-101", "You said you have a W-2 job, so benefits may apply.");
+    addReason(lessonReasons, "taxes-how-to-file", "You have W-2 income, so filing taxes applies.");
+  }
+
+  // 1099 / freelance / business => include W-2 vs 1099, taxes how-to-file, write-offs
+  if (
+    traits.incomeTypes.includes("freelance_1099") ||
+    traits.incomeTypes.includes("business_owner")
+  ) {
+    ensureIncluded(ids, "w2-vs-1099");
+    ensureIncluded(ids, "taxes-how-to-file");
+    ensureIncluded(ids, "write-offs-explained");
+    addReason(lessonReasons, "w2-vs-1099", "You said you have 1099 or business income.");
+    addReason(lessonReasons, "taxes-how-to-file", "You have 1099 or business income, so filing and estimated taxes apply.");
+    addReason(lessonReasons, "write-offs-explained", "You have 1099 or business income; write-offs may apply.");
   }
 
   // filter: existing + not suppressed

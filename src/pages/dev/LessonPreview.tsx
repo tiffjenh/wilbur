@@ -13,6 +13,10 @@ import emergencyFundBasicsSnapshot from "@/content/lessons/snapshots/emergency-f
 import creditCardsStatementBalanceSnapshot from "@/content/lessons/snapshots/credit-cards-statement-balance";
 import workBenefits101Snapshot from "@/content/lessons/snapshots/work-benefits-101";
 import investingBasicsNoStockPickingSnapshot from "@/content/lessons/snapshots/investing-basics-no-stock-picking";
+import studentLoansBasicsSnapshot from "@/content/lessons/snapshots/student-loans-basics";
+import w2Vs1099Snapshot from "@/content/lessons/snapshots/w2-vs-1099";
+import taxesHowToFileSnapshot from "@/content/lessons/snapshots/taxes-how-to-file";
+import writeOffsExplainedSnapshot from "@/content/lessons/snapshots/write-offs-explained";
 
 const SNAPSHOT_MAP = {
   "adult-money-game-plan": adultMoneyGamePlanSnapshot,
@@ -22,6 +26,10 @@ const SNAPSHOT_MAP = {
   "credit-cards-statement-balance": creditCardsStatementBalanceSnapshot,
   "work-benefits-101": workBenefits101Snapshot,
   "investing-basics-no-stock-picking": investingBasicsNoStockPickingSnapshot,
+  "student-loans-basics": studentLoansBasicsSnapshot,
+  "w2-vs-1099": w2Vs1099Snapshot,
+  "taxes-how-to-file": taxesHowToFileSnapshot,
+  "write-offs-explained": writeOffsExplainedSnapshot,
 };
 
 type LessonKey = keyof typeof SNAPSHOT_MAP;

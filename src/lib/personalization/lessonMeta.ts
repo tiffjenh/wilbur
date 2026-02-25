@@ -52,4 +52,33 @@ export const LESSON_META: Record<string, LessonMeta> = {
     chunk: "growth",
     baseWeight: 50,
   },
+  "student-loans-basics": {
+    id: "student-loans-basics",
+    title: "Student Loans Basics (Federal vs Private, What To Do First)",
+    domain: "studentLoans",
+    chunk: "stability",
+    baseWeight: 75,
+  },
+  "w2-vs-1099": {
+    id: "w2-vs-1099",
+    title: "W-2 vs 1099 (What Changes for Taxes and Benefits)",
+    domain: "incomeBenefits",
+    chunk: "income",
+    baseWeight: 65,
+  },
+  "taxes-how-to-file": {
+    id: "taxes-how-to-file",
+    title: "How to File Your Taxes (What You Need + Software Options)",
+    domain: "taxes",
+    chunk: "income",
+    baseWeight: 60,
+  },
+  "write-offs-explained": {
+    id: "write-offs-explained",
+    title: "Write-Offs Explained (What They Are and What They Aren't)",
+    domain: "taxes",
+    chunk: "income",
+    baseWeight: 55,
+    suppressedBy: [(t) => !t.incomeTypes.includes("freelance_1099") && !t.incomeTypes.includes("business_owner")],
+  },
 };

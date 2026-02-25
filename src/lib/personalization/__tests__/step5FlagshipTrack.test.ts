@@ -15,6 +15,7 @@ const DEBT_STABILIZER_EXPECTED_ORDER = [
   "credit-cards-statement-balance",
   "paycheck-basics",
   "work-benefits-101",
+  "taxes-how-to-file",
   "investing-basics-no-stock-picking",
 ];
 

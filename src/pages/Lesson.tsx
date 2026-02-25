@@ -18,7 +18,9 @@ import { LESSON_CATALOG_BY_ID } from "@/content/lessons/lessonCatalog";
 import { loadAnswersFromStorage, toQuestionnaireAnswers } from "@/lib/recommendation/adapter";
 import { loadFeedbackSync } from "@/lib/storage/lessonProgress";
 import { getLessonBySlug, listLessons } from "@/lib/supabase/lessons";
-import { getPublishedLesson } from "@/lib/lessons/getPublishedLesson";
+import { getPublishedLesson, mapSnapshotToLesson } from "@/lib/lessons/getPublishedLesson";
+import { getLocalSnapshot } from "@/lib/lessons/localSnapshots";
+import type { CMSLessonRecord } from "@/lib/lessonBlocks/types";
 import type { LessonBlock as LegacyLessonBlock } from "@/content/lessonTypes";
 import { hasLessonContent } from "@/lib/catalog/auditCatalog";
 import { isLessonInRegistry, isLessonMissingOrEmpty } from "@/lib/catalog/lessonAvailability";
@@ -114,10 +116,11 @@ export const Lesson: React.FC = () => {
 
   const [publishedLesson, setPublishedLesson] = useState<Awaited<ReturnType<typeof getPublishedLesson>>>(null);
   const [cmsLesson, setCmsLesson] = useState<Awaited<ReturnType<typeof getLessonBySlug>>>(null);
+  const [localSnapshotRecord, setLocalSnapshotRecord] = useState<CMSLessonRecord | null>(null);
   const [cmsList, setCmsList] = useState<Awaited<ReturnType<typeof listLessons>>>([]);
   const [lessonLoading, setLessonLoading] = useState(true);
 
-  // Phase 1 CMS: try lesson_latest_published first, then fall back to cms_lessons then local
+  // Phase 1 CMS: try lesson_latest_published first, then cms_lessons, then local snapshots
   useEffect(() => {
     if (!slug) {
       setLessonLoading(false);
@@ -125,12 +128,14 @@ export const Lesson: React.FC = () => {
     }
     let cancelled = false;
     setLessonLoading(true);
+    setLocalSnapshotRecord(null);
     getPublishedLesson(slug)
       .then((result) => {
         if (cancelled) return;
         if (result) {
           setPublishedLesson(result);
           setCmsLesson(null);
+          setLocalSnapshotRecord(null);
           setLessonLoading(false);
           return;
         }
@@ -139,13 +144,27 @@ export const Lesson: React.FC = () => {
       })
       .then((fallbackLesson) => {
         if (cancelled) return;
-        if (fallbackLesson !== undefined) setCmsLesson(fallbackLesson ?? null);
+        if (fallbackLesson !== undefined && fallbackLesson != null) {
+          setCmsLesson(fallbackLesson);
+          setLocalSnapshotRecord(null);
+        } else {
+          const snap = getLocalSnapshot(slug);
+          if (snap) {
+            try {
+              setLocalSnapshotRecord(mapSnapshotToLesson(snap, slug, null, null));
+            } catch (_) {
+              setLocalSnapshotRecord(null);
+            }
+          }
+          setCmsLesson(null);
+        }
         setLessonLoading(false);
       })
       .catch(() => {
         if (!cancelled) {
           setPublishedLesson(null);
           setCmsLesson(null);
+          setLocalSnapshotRecord(null);
           setLessonLoading(false);
         }
       });
@@ -171,14 +190,16 @@ export const Lesson: React.FC = () => {
   }, [publishedLesson?.record.category, cmsLesson?.category, cmsLesson?.id]);
 
   const curriculumLesson = slug ? CURRICULUM.lessons.find((l) => l.id === slug) ?? null : null;
-  const content = slug && !publishedLesson && !cmsLesson ? getLessonContent(slug) : null;
+  const content = slug && !publishedLesson && !cmsLesson && !localSnapshotRecord ? getLessonContent(slug) : null;
   const excerptBlock = content
     ? buildLessonExcerpt(content)
     : publishedLesson
       ? `${publishedLesson.record.title}. ${(publishedLesson.record.hero_takeaways ?? []).join(" ")}`
       : cmsLesson
         ? `${cmsLesson.title}. ${(cmsLesson.hero_takeaways ?? []).join(" ")}`
-        : "";
+        : localSnapshotRecord
+          ? `${localSnapshotRecord.title}. ${(localSnapshotRecord.hero_takeaways ?? []).join(" ")}`
+          : "";
 
   const sidebarLessons = curriculumLesson
     ? CURRICULUM.lessons.filter((l) => l.domainId === curriculumLesson.domainId)
@@ -211,6 +232,7 @@ export const Lesson: React.FC = () => {
   const hasLesson =
     !!publishedLesson ||
     !!cmsLesson ||
+    !!localSnapshotRecord ||
     !!curriculumLesson ||
     (!!slug && isLessonInRegistry(slug) && hasLessonContent(slug));
 
@@ -228,13 +250,13 @@ export const Lesson: React.FC = () => {
     return <ComingSoonLesson lessonId={slug ?? ""} />;
   }
 
-  const displayRecord = publishedLesson?.record ?? cmsLesson;
+  const displayRecord = publishedLesson?.record ?? cmsLesson ?? localSnapshotRecord;
   const lessonTitle = displayRecord?.title ?? curriculumLesson?.title ?? "";
-  const lessonCategory = displayRecord?.category ?? curriculumLesson?.tags[0] ?? curriculumLesson?.domainId ?? "";
+  const lessonCategory = displayRecord?.category ?? curriculumLesson?.tags?.[0] ?? curriculumLesson?.domainId ?? "";
   const lessonDuration = displayRecord ? `${displayRecord.estimated_minutes} min` : curriculumLesson ? `${curriculumLesson.estimatedMinutes} min` : "";
   const lessonLevel = displayRecord?.level ?? curriculumLesson?.level ?? "beginner";
   const legacyBlocks = content ? content.blocks.map(contentBlockToLegacy).filter((b): b is LegacyLessonBlock => b != null) : [];
-  const useCmsContent = !!publishedLesson || !!cmsLesson;
+  const useCmsContent = !!publishedLesson || !!cmsLesson || !!localSnapshotRecord;
 
   return (
     <>
