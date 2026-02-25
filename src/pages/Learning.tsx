@@ -17,7 +17,6 @@ export const Learning: React.FC = () => {
   const navigate = useNavigate();
   const [showAccountPopup, setShowAccountPopup] = useState(false);
   const [activeLesson] = useState<string | null>(null); // reserved for future expanded view
-  const [showReasonFor, setShowReasonFor] = useState<string | null>(null);
 
   const {
     lessons,
@@ -25,8 +24,6 @@ export const Learning: React.FC = () => {
     savedLessons,
     isLoading,
     completed,
-    getReasons,
-    getTopReason,
     debugInfo,
     pathError,
   } = useLearningPath({ maxLessons: 8 });
@@ -185,9 +182,7 @@ export const Learning: React.FC = () => {
                   const isCompleted = completed.has(lesson.id);
                   const globalFirstIndex = lessons.findIndex(l => !completed.has(l.id));
                   const isFirst = !isCompleted && globalFirstIndex === i;
-                  const topReason = getTopReason(lesson.id);
                   void activeLesson; // reserved for future expanded view
-                  const showingReason = showReasonFor === lesson.id;
 
                   return (
                     <div
@@ -251,45 +246,7 @@ export const Learning: React.FC = () => {
                             }}>
                               {lesson.level === "beginner" ? "L1" : lesson.level === "intermediate" ? "L2" : "L3"}
                             </span>
-                            {/* "Why recommended" inline label */}
-                            {topReason && !isCompleted && (
-                              <button
-                                onClick={() => setShowReasonFor(showingReason ? null : lesson.id)}
-                                style={{
-                                  display: "inline-flex", alignItems: "center", gap: 4,
-                                  fontSize: 11, color: "#7a7a6e", background: "none",
-                                  border: "1px solid #eae5db", borderRadius: 4,
-                                  padding: "1px 7px", cursor: "pointer", fontFamily: "var(--font-sans)",
-                                }}
-                              >
-                                <span>Why?</span>
-                                <span style={{ fontSize: 9 }}>{showingReason ? "▲" : "▼"}</span>
-                              </button>
-                            )}
                           </div>
-
-                          {/* Expanded "Why recommended" reasons */}
-                          {showingReason && (
-                            <div style={{
-                              marginTop: 8,
-                              padding: "8px 12px",
-                              backgroundColor: "rgba(14,92,76,0.05)",
-                              borderRadius: 8,
-                              border: "1px solid rgba(14,92,76,0.12)",
-                            }}>
-                              <div style={{ fontSize: 11, fontWeight: 700, color: "#0E5C4C", marginBottom: 5, fontFamily: "var(--font-sans)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                                Why this is in your path
-                              </div>
-                              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-                                {getReasons(lesson.id).map((r, ri) => (
-                                  <li key={ri} style={{ fontSize: 12, color: "#3d3d35", fontFamily: "var(--font-sans)", display: "flex", gap: 6 }}>
-                                    <span style={{ color: "#0E5C4C" }}>·</span>
-                                    {r}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
                         </div>
 
                         {/* Action button */}
@@ -334,8 +291,6 @@ export const Learning: React.FC = () => {
                       const globalFirstIndex = lessons.findIndex(l => !completed.has(l.id));
                       const idxInAll = recommendedLessons.length + i;
                       const isFirst = !isCompleted && globalFirstIndex === idxInAll;
-                      const topReason = getTopReason(lesson.id);
-                      const showingReason = showReasonFor === lesson.id;
 
                       return (
                         <div
@@ -394,42 +349,7 @@ export const Learning: React.FC = () => {
                                 }}>
                                   {lesson.level === "beginner" ? "L1" : lesson.level === "intermediate" ? "L2" : "L3"}
                                 </span>
-                                {topReason && !isCompleted && (
-                                  <button
-                                    onClick={() => setShowReasonFor(showingReason ? null : lesson.id)}
-                                    style={{
-                                      display: "inline-flex", alignItems: "center", gap: 4,
-                                      fontSize: 11, color: "#7a7a6e", background: "none",
-                                      border: "1px solid #eae5db", borderRadius: 4,
-                                      padding: "1px 7px", cursor: "pointer", fontFamily: "var(--font-sans)",
-                                    }}
-                                  >
-                                    <span>Why?</span>
-                                    <span style={{ fontSize: 9 }}>{showingReason ? "▲" : "▼"}</span>
-                                  </button>
-                                )}
                               </div>
-                              {showingReason && (
-                                <div style={{
-                                  marginTop: 8,
-                                  padding: "8px 12px",
-                                  backgroundColor: "rgba(14,92,76,0.05)",
-                                  borderRadius: 8,
-                                  border: "1px solid rgba(14,92,76,0.12)",
-                                }}>
-                                  <div style={{ fontSize: 11, fontWeight: 700, color: "#0E5C4C", marginBottom: 5, fontFamily: "var(--font-sans)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                                    Why this is in your path
-                                  </div>
-                                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-                                    {getReasons(lesson.id).map((r, ri) => (
-                                      <li key={ri} style={{ fontSize: 12, color: "#3d3d35", fontFamily: "var(--font-sans)", display: "flex", gap: 6 }}>
-                                        <span style={{ color: "#0E5C4C" }}>·</span>
-                                        {r}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
                             </div>
                             {isCompleted ? (
                               <span style={{ fontSize: 11, color: "#0E5C4C", fontWeight: 600, fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>Done</span>
