@@ -4,172 +4,193 @@
  * Track: First Job Out of College
  * Domain: investingBasics
  *
- * Education-only; 7–8 min read; beginner-friendly.
- * Block types: heading, paragraph, bullets, callout, chips, divider.
+ * Education-only; 6–9 min read; beginner-friendly.
+ * Block types: heading, paragraph, bullets, callout, chips, divider,
+ * comparisonCards, miniChart, stepList, scenarioCard, decisionTree, recapCard.
  */
 
 export const investingBasicsNoStockPickingSnapshot = {
   hero: {
     headline: "Investing Basics (Without Stock-Picking)",
     subhead:
-      "Investing can feel intimidating. This lesson teaches the big picture — what investing is, how risk works, and why you don't need to pick individual stocks.",
+      "Investing can feel intimidating. This lesson teaches the big picture — what investing is, how it differs from saving, and why you don't need to pick individual stocks.",
     takeaways: [
-      "Investing is putting money into something that can grow over time (like shares of companies or funds); saving is keeping money in cash.",
-      "Risk means the value can go up or down; over long periods, many people accept some risk for the chance of growth.",
-      "Beginners don't need to pick individual stocks — funds that hold many investments are a common, simple starting point.",
+      "Investing is putting money into assets that can grow over time; saving is keeping money in cash — different jobs for different goals.",
+      "Over long periods, many people accept some fluctuation in exchange for the chance of growth; time and consistency matter more than timing.",
+      "Beginners don't need to pick stocks — broad funds (like ETFs) are a simple, calm way to start.",
     ],
   },
 
   sections: [
-    {
-      type: "heading",
-      level: 2,
-      text: "What investing actually is",
-    },
+    { type: "heading", level: 2, text: "Investing vs Saving" },
     {
       type: "paragraph",
-      text: "Investing means putting your money into something that can grow in value over time — like owning a small piece of many companies (through stocks or funds) or lending money to a company or government (bonds). You're not just holding cash; you're putting it to work with the hope that over years, it grows. That usually means accepting that the value can go up and down along the way. It's different from saving: saving is keeping money in a safe, accessible place (like a savings account); investing is taking on some uncertainty in exchange for the possibility of higher growth over the long term.",
+      text:
+        "Saving and investing do different jobs. Saving is for money you need soon or want to keep stable. Investing is for money you can leave alone for years, with the goal of growth. Both belong in a solid plan.",
     },
     {
-      type: "callout",
-      variant: "tip",
-      title: "Ownership and time",
-      text: "When you invest in stocks or stock funds, you own a share of real businesses. Over long periods, the economy and companies have tended to grow, and many investors have stayed invested through ups and downs. That doesn't guarantee future results — but it's the simple idea behind long-term investing.",
-    },
-    {
-      type: "heading",
-      level: 2,
-      text: "Saving vs investing",
-    },
-    {
-      type: "paragraph",
-      text: "Saving is when you keep money in a safe place — a savings account, a checking account — where it's easy to get to and doesn't usually change much in value. Investing is when you put money into assets that can go up or down — stocks, bonds, funds — with the goal of growth over time. You need both: savings for emergencies and short-term goals, investing for longer-term goals like retirement. Don't invest money you might need in the next few years; that's what savings are for.",
-    },
-    {
-      type: "chips",
-      items: [
-        "Saving = cash, accessible, stable",
-        "Investing = ownership or lending, can grow or shrink, usually long-term",
-        "Use both — they do different jobs",
+      type: "comparisonCards",
+      cards: [
+        {
+          title: "Saving",
+          bullets: [
+            "Low risk, stable value",
+            "Easy to access when you need it",
+            "Best for emergencies and short-term goals",
+          ],
+          badge: "Short term",
+        },
+        {
+          title: "Investing",
+          bullets: [
+            "Value can go up and down over time",
+            "Long-term growth potential",
+            "Best for goals years or decades away",
+          ],
+          badge: "Long term",
+        },
       ],
     },
-    {
-      type: "divider",
-    },
-    {
-      type: "heading",
-      level: 2,
-      text: "What risk means in simple language",
-    },
+    { type: "divider" },
+    { type: "heading", level: 2, text: "Why investing grows money" },
     {
       type: "paragraph",
-      text: "Risk in investing means that the value of what you own can go down as well as up. There's no guarantee. Over a single day or year, you might see big swings. Over many years, many people have been willing to accept that uncertainty because historically, diversified investments have had a chance to grow more than cash. Risk isn't good or bad by itself — it's a trade-off. The key is not to take more risk than you can handle emotionally or financially, and to give yourself enough time so that short-term drops don't force you to sell at the wrong moment.",
+      text:
+        "When you invest in a broad mix of companies (through a fund), you're betting on the economy and businesses growing over time. History doesn't guarantee the future — but the idea is that patient, diversified investing has given many people a chance to grow their money more than cash alone.",
     },
     {
-      type: "heading",
-      level: 2,
-      text: "Stocks, bonds, and ETFs (high level)",
+      type: "miniChart",
+      title: "Example: $500/month invested for 10 years at 7%",
+      description:
+        "Hypothetical growth curve: consistent monthly contributions can add up over a decade. This is for illustration only — past performance does not guarantee future results. Real returns vary.",
     },
+    { type: "divider" },
+    { type: "heading", level: 2, text: "Should you invest yet?" },
     {
       type: "paragraph",
-      text: "Stocks represent a small piece of ownership in a company; if the company does well, the stock can go up (and sometimes pay dividends), but it can also go down. Bonds are more like loans: you lend money to a company or government, and they pay you interest and eventually return the principal; they're often less volatile than stocks but usually offer lower long-term growth. ETFs (exchange-traded funds) are baskets of many stocks or bonds in one product — you buy one share and own a slice of hundreds of investments. That diversification is one reason beginners often start with funds instead of picking individual stocks.",
+      text:
+        "Investing makes the most sense when your foundation is solid. Use the checks below — not as a quiz, but as a simple order of operations.",
     },
     {
-      type: "bullets",
-      items: [
-        "Stocks = ownership in companies; can go up or down.",
-        "Bonds = lending; typically more stable, often lower growth.",
-        "ETFs = a fund that holds many stocks or bonds; one purchase gives you diversification.",
+      type: "decisionTree",
+      steps: [
+        { label: "Emergency fund built?" },
+        { label: "High-interest debt under control?" },
+      ],
+      outcomeNo: "Stabilize first. Build your emergency fund and tackle high-interest debt before adding market risk.",
+      outcomeYes: "Investing can make sense. Start with a simple, diversified approach and avoid the noise.",
+    },
+    { type: "divider" },
+    { type: "heading", level: 2, text: "A simple starting strategy" },
+    {
+      type: "paragraph",
+      text:
+        "You don't need a complicated plan. These steps are a common, calm way to begin — no stock-picking required.",
+    },
+    {
+      type: "stepList",
+      steps: [
+        "Open a brokerage account (or use one through your employer's retirement plan).",
+        "Choose a broad ETF or index fund — one that holds many companies, not a single stock.",
+        "Automate a monthly deposit so you invest consistently.",
+        "Ignore daily noise. Long-term means years, not days.",
       ],
     },
-    {
-      type: "heading",
-      level: 2,
-      text: "Why beginners don't need to pick individual stocks",
-    },
-    {
-      type: "paragraph",
-      text: "Picking individual stocks means trying to choose which companies will do well. That's hard even for professionals, and it can feel like gambling when you're new. A simpler approach is to use funds — like index funds or ETFs — that hold a broad mix of stocks or bonds. You get exposure to the market without having to research hundreds of companies. You can always learn more later; for most people, starting with a simple, diversified fund is a calm way to begin.",
-    },
+    { type: "divider" },
+    { type: "heading", level: 2, text: "Common mistakes" },
     {
       type: "callout",
-      variant: "tip",
-      title: "Calm, long-term, no hype",
-      text: "Investing doesn't have to be exciting or complicated. The goal isn't to get rich quick or beat the market. It's to put money to work over time in a way that fits your goals and your comfort with risk. Ignore the day-trading noise and focus on the basics.",
+      variant: "warning",
+      title: "Heads up",
+      text:
+        "Chasing hot stocks, investing money you might need soon, or panicking when the market drops can hurt your results. The goal is steady, boring progress — not getting rich quick. This lesson is education only; it's not personalized advice.",
     },
+    { type: "divider" },
+    { type: "heading", level: 2, text: "Example scenario" },
     {
-      type: "heading",
-      level: 2,
-      text: "Long-term mindset vs day-trading hype",
+      type: "scenarioCard",
+      title: "Long-term compounding (hypothetical)",
+      scenario: "$60k salary, 10% invested each year in a broad fund.",
+      breakdown: [
+        "Assumes a consistent contribution and a hypothetical average return (e.g. ~6–7% per year — not guaranteed).",
+        "Over 20–30 years, compounding can grow the balance significantly.",
+        "Real results depend on market returns, fees, and your own timeline.",
+      ],
+      outcome: "Time in the market and consistency usually matter more than timing. This is for illustration only — not a prediction or recommendation.",
     },
+    { type: "divider" },
+    { type: "heading", level: 2, text: "Recap" },
     {
-      type: "paragraph",
-      text: "A lot of what you see online — hot stocks, quick gains, 'get rich' stories — is about short-term trading, not long-term investing. Long-term investing usually means buying and holding a diversified mix for years or decades, through ups and downs. That approach doesn't make headlines, but it's how many people build wealth slowly and steadily. Avoid the framing that investing is like gambling or that you need to pick winners every week. You don't. A long-term mindset and simple, diversified choices are enough to get started.",
-    },
-    {
-      type: "callout",
-      variant: "note",
-      title: "Education only",
-      text: "This lesson is for learning only. It is not personalized financial advice. Past performance does not guarantee future results. Consider your own situation and, if needed, a qualified professional.",
+      type: "recapCard",
+      title: "Key takeaways",
+      items: [
+        "Saving = stable, accessible. Investing = growth potential over the long term.",
+        "Check: emergency fund and high-interest debt first, then consider investing.",
+        "Start simple: broad ETF or index fund, automate, ignore daily noise.",
+        "No stock-picking required. Education only — not personal financial advice.",
+      ],
     },
   ],
 
   bottom: {
-    examples: [
-      {
-        type: "callout",
-        variant: "tip",
-        title: "Example: Jordan's first step into investing",
-        text: "Jordan had built a small emergency fund and was ready to learn. They didn't try to pick stocks. Instead they read about index funds — funds that hold a broad mix of stocks — and decided to put a small amount from each paycheck into one through their 401(k). They're not watching the market every day; they're just contributing regularly and leaving it alone. That's a long-term, low-hype approach that fits their goals.",
-      },
-    ],
+    examples: [],
     video: [],
     quiz: {
-      title: "Quick check: What did you learn?",
+      title: "Quick check: Investing basics",
       questions: [
         {
-          prompt: "Investing is different from saving because:",
+          prompt: "What's the main difference between saving and investing?",
           choices: [
-            "Investing is only for rich people",
-            "Investing means putting money into things that can grow (or shrink) over time; saving is keeping money in cash",
-            "Saving is riskier than investing",
+            "Saving is only for rich people",
+            "Saving is stable and accessible; investing can grow (or fluctuate) over time and is usually for longer-term goals",
+            "Investing is risk-free",
           ],
           correctIndex: 1,
           explanation:
-            "Saving is keeping money in a safe, accessible place like a savings account. Investing is putting money into assets like stocks or funds that can grow or fall in value over time, usually for long-term goals.",
+            "Saving keeps money in cash-like places; investing puts money into assets that can grow or shrink, usually for goals years away.",
         },
         {
-          prompt: "What does 'risk' mean in investing?",
+          prompt: "Before focusing on investing, what should you prioritize?",
           choices: [
-            "You are guaranteed to lose money",
-            "The value of what you own can go down as well as up; there's no guarantee",
-            "Risk only applies to bonds",
+            "Picking the best individual stocks",
+            "Building an emergency fund and getting high-interest debt under control",
+            "Investing 100% of your income",
           ],
           correctIndex: 1,
           explanation:
-            "Risk means your investment can lose value, not just gain. Over long periods many people accept some risk for the chance of growth, but there are no guarantees.",
+            "A solid foundation — emergency fund and manageable debt — makes it safer to invest for the long term.",
         },
         {
-          prompt: "Why might a beginner use a fund (like an ETF) instead of picking individual stocks?",
+          prompt: "Why might a beginner use a broad fund (like an ETF) instead of picking individual stocks?",
           choices: [
-            "Funds always perform better than individual stocks",
-            "A fund holds many investments, so you get diversification without having to pick each company yourself",
             "Individual stocks are illegal for beginners",
+            "A broad fund gives diversification without having to research and pick each company — simpler and calmer to start",
+            "Funds always guarantee higher returns",
           ],
           correctIndex: 1,
           explanation:
-            "Funds (e.g. index funds or ETFs) hold a broad mix of stocks or bonds. You get diversification and simplicity without having to research and pick individual companies — a common, calm way to start.",
+            "Funds hold many investments in one product, so you get diversification and a simple path without stock-picking.",
         },
       ],
     },
     sources: [
       {
-        title: "Investor.gov – Introduction to investing",
-        url: "https://www.investor.gov/introduction-investing",
+        title: "Consumer Financial Protection Bureau — Saving and investing",
+        url: "https://www.consumerfinance.gov/consumer-tools/save-invest/",
+        domain: "consumerfinance.gov",
+        tier: 1,
       },
       {
-        title: "Consumer Financial Protection Bureau – Saving and investing",
-        url: "https://www.consumerfinance.gov/consumer-tools/save-invest/",
+        title: "SEC Investor.gov — Introduction to investing",
+        url: "https://www.investor.gov/introduction-investing",
+        domain: "investor.gov",
+        tier: 1,
+      },
+      {
+        title: "MyMoney.gov — Get started with saving and investing",
+        url: "https://www.mymoney.gov/",
+        domain: "mymoney.gov",
+        tier: 1,
       },
     ],
   },

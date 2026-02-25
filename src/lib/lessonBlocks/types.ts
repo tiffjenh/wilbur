@@ -65,6 +65,38 @@ export type ComparisonCardsBlock = {
   cards: [ComparisonCard, ComparisonCard];
 };
 
+export type MiniChartBlock = {
+  type: "miniChart";
+  title?: string;
+  description: string;
+};
+
+export type StepListBlock = {
+  type: "stepList";
+  steps: string[];
+};
+
+export type ScenarioCardBlock = {
+  type: "scenarioCard";
+  title?: string;
+  scenario?: string;
+  breakdown?: string[];
+  outcome?: string;
+};
+
+export type DecisionTreeBlock = {
+  type: "decisionTree";
+  steps: { label: string }[];
+  outcomeNo: string;
+  outcomeYes: string;
+};
+
+export type RecapCardBlock = {
+  type: "recapCard";
+  title?: string;
+  items: string[];
+};
+
 export type CMSBlock =
   | HeadingBlock
   | ParagraphBlock
@@ -75,7 +107,12 @@ export type CMSBlock =
   | TwoColumnBlock
   | ChartPlaceholderBlock
   | ImagePlaceholderBlock
-  | ComparisonCardsBlock;
+  | ComparisonCardsBlock
+  | MiniChartBlock
+  | StepListBlock
+  | ScenarioCardBlock
+  | DecisionTreeBlock
+  | RecapCardBlock;
 
 export type QuizQuestion = {
   prompt: string;

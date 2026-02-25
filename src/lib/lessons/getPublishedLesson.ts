@@ -156,6 +156,51 @@ function sectionToBlocks(section: unknown): CMSBlock[] {
   if (type === "imagePlaceholder") {
     return [{ type: "imagePlaceholder", title: str(s.title), description: str(s.description) }];
   }
+  if (type === "comparisonCards") {
+    const cardsRaw = arr(s.cards);
+    if (cardsRaw.length >= 2) {
+      const toCard = (c: unknown) => {
+        const o = (c != null && typeof c === "object" ? c : {}) as Record<string, unknown>;
+        return {
+          title: str(o.title),
+          bullets: arr(o.bullets).map((x) => (typeof x === "string" ? x : String(x))).filter(Boolean),
+          badge: str(o.badge) || undefined,
+        };
+      };
+      return [{ type: "comparisonCards", cards: [toCard(cardsRaw[0]), toCard(cardsRaw[1])] }];
+    }
+  }
+  if (type === "miniChart") {
+    return [{ type: "miniChart", title: str(s.title) || undefined, description: str(s.description) }];
+  }
+  if (type === "stepList") {
+    const stepsArr = arr(s.steps).map((x) => (typeof x === "string" ? x : String(x))).filter(Boolean);
+    if (stepsArr.length) return [{ type: "stepList", steps: stepsArr }];
+  }
+  if (type === "scenarioCard") {
+    const breakdownArr = arr(s.breakdown).map((x) => (typeof x === "string" ? x : String(x))).filter(Boolean);
+    return [{
+      type: "scenarioCard",
+      title: str(s.title) || undefined,
+      scenario: str(s.scenario),
+      breakdown: breakdownArr.length ? breakdownArr : undefined,
+      outcome: str(s.outcome) || undefined,
+    }];
+  }
+  if (type === "decisionTree") {
+    const stepsRaw = arr(s.steps);
+    const steps = stepsRaw.map((x) => {
+      const o = (x != null && typeof x === "object" ? x : {}) as Record<string, unknown>;
+      return { label: str(o.label ?? o.text) };
+    }).filter((st) => st.label);
+    if (steps.length && (str(s.outcomeNo) || str(s.outcomeYes))) {
+      return [{ type: "decisionTree", steps, outcomeNo: str(s.outcomeNo), outcomeYes: str(s.outcomeYes) }];
+    }
+  }
+  if (type === "recapCard") {
+    const itemsArr = arr(s.items ?? s.bullets).map((x) => (typeof x === "string" ? x : String(x))).filter(Boolean);
+    if (itemsArr.length) return [{ type: "recapCard", title: str(s.title) || undefined, items: itemsArr }];
+  }
 
   if (s.title && text) return [{ type: "heading", level: 2, text: str(s.title) }, { type: "paragraph", text }];
   if (text) return [{ type: "paragraph", text }];
@@ -307,10 +352,6 @@ export function mapSnapshotToLesson(
   };
 
   devLog("Mapped lesson shape:", { title: record.title, content_blocks: record.content_blocks.length, example_blocks: record.example_blocks.length, video_blocks: record.video_blocks.length, quiz: !!record.quiz });
-  console.log(
-    "CONTENT BLOCK TYPES:",
-    content_blocks.map((b) => b.type)
-  );
   return record;
 }
 

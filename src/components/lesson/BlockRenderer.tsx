@@ -13,6 +13,11 @@ import type {
   ChartPlaceholderBlock,
   ImagePlaceholderBlock,
   ComparisonCardsBlock,
+  MiniChartBlock,
+  StepListBlock,
+  ScenarioCardBlock,
+  DecisionTreeBlock,
+  RecapCardBlock,
 } from "@/lib/lessonBlocks/types";
 
 const BLOCK_RADIUS = 12;
@@ -240,6 +245,143 @@ function ComparisonCards({ cards }: ComparisonCardsBlock) {
   );
 }
 
+function MiniChart({ title, description }: MiniChartBlock) {
+  return (
+    <div
+      style={{
+        backgroundColor: "var(--color-surface)",
+        border: "1px solid var(--color-border-light)",
+        borderRadius: BLOCK_RADIUS,
+        padding: BLOCK_PADDING,
+        marginBottom: BLOCK_MB,
+      }}
+    >
+      <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: 8 }}>[Growth curve]</div>
+      {title && (
+        <div style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-base)", fontWeight: 600, color: "var(--color-text)", marginBottom: 8 }}>{title}</div>
+      )}
+      <p style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", margin: 0, lineHeight: 1.55 }}>{description}</p>
+    </div>
+  );
+}
+
+function StepList({ steps }: StepListBlock) {
+  return (
+    <div
+      style={{
+        backgroundColor: "var(--color-surface)",
+        border: "1px solid var(--color-border-light)",
+        borderRadius: BLOCK_RADIUS,
+        padding: BLOCK_PADDING,
+        marginBottom: BLOCK_MB,
+      }}
+    >
+      <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+        {steps.map((step, i) => (
+          <li key={i} style={{ display: "flex", gap: 12, fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.55, fontFamily: "var(--font-sans)" }}>
+            <span style={{ color: "var(--color-primary)", fontWeight: 700, flexShrink: 0, width: 22 }}>{i + 1}.</span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function ScenarioCard({ title, scenario, breakdown, outcome }: ScenarioCardBlock) {
+  return (
+    <div
+      style={{
+        backgroundColor: "rgba(14,92,76,0.04)",
+        border: "1px solid rgba(14,92,76,0.2)",
+        borderRadius: BLOCK_RADIUS,
+        padding: BLOCK_PADDING,
+        marginBottom: BLOCK_MB,
+      }}
+    >
+      {title && (
+        <div style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-base)", fontWeight: 600, color: "var(--color-text)", marginBottom: 10 }}>{title}</div>
+      )}
+      {scenario && (
+        <p style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", margin: "0 0 12px", lineHeight: 1.6 }}>{scenario}</p>
+      )}
+      {breakdown && breakdown.length > 0 && (
+        <ul style={{ listStyle: "none", padding: 0, margin: "0 0 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+          {breakdown.map((item, i) => (
+            <li key={i} style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", fontFamily: "var(--font-sans)", display: "flex", gap: 8 }}>
+              <span style={{ color: "var(--color-primary)", flexShrink: 0 }}>·</span>
+              {item}
+            </li>
+          ))}
+        </ul>
+      )}
+      {outcome && (
+        <div style={{ padding: "10px 12px", backgroundColor: "rgba(14,92,76,0.08)", borderRadius: 8, borderLeft: "3px solid var(--color-primary)", fontSize: "var(--text-sm)", color: "var(--color-primary)", fontFamily: "var(--font-sans)", lineHeight: 1.55, fontWeight: 500 }}>
+          {outcome}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DecisionTree({ steps, outcomeNo, outcomeYes }: DecisionTreeBlock) {
+  return (
+    <div
+      style={{
+        backgroundColor: "var(--color-surface)",
+        border: "1px solid var(--color-border-light)",
+        borderRadius: BLOCK_RADIUS,
+        padding: BLOCK_PADDING,
+        marginBottom: BLOCK_MB,
+      }}
+    >
+      <div style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)", marginBottom: 12 }}>Check these first</div>
+      <ol style={{ listStyle: "none", padding: 0, margin: "0 0 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {steps.map((step, i) => (
+          <li key={i} style={{ display: "flex", gap: 10, fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", fontFamily: "var(--font-sans)" }}>
+            <span style={{ color: "var(--color-primary)", fontWeight: 700, flexShrink: 0 }}>Step {i + 1}:</span>
+            {step.label}
+          </li>
+        ))}
+      </ol>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ flex: "1 1 140px", padding: "10px 12px", borderRadius: 8, backgroundColor: "rgba(217,83,79,0.06)", border: "1px solid rgba(217,83,79,0.2)", fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", fontFamily: "var(--font-sans)" }}>
+          <span style={{ fontWeight: 600, color: "#c0392b" }}>If no →</span> {outcomeNo}
+        </div>
+        <div style={{ flex: "1 1 140px", padding: "10px 12px", borderRadius: 8, backgroundColor: "rgba(14,92,76,0.06)", border: "1px solid rgba(14,92,76,0.2)", fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", fontFamily: "var(--font-sans)" }}>
+          <span style={{ fontWeight: 600, color: "var(--color-primary)" }}>If yes →</span> {outcomeYes}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecapCard({ title, items }: RecapCardBlock) {
+  return (
+    <div
+      style={{
+        backgroundColor: "rgba(14,92,76,0.06)",
+        border: "1px solid rgba(14,92,76,0.2)",
+        borderRadius: BLOCK_RADIUS,
+        padding: BLOCK_PADDING,
+        marginBottom: BLOCK_MB,
+      }}
+    >
+      {title && (
+        <div style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-base)", fontWeight: 600, color: "var(--color-text)", marginBottom: 10 }}>{title}</div>
+      )}
+      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+        {items.map((item, i) => (
+          <li key={i} style={{ display: "flex", gap: 10, fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, fontFamily: "var(--font-sans)" }}>
+            <span style={{ color: "var(--color-primary)", flexShrink: 0 }}>✓</span>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function CMSBlockRenderer({ block }: { block: CMSBlock }) {
   switch (block.type) {
     case "heading":
@@ -262,6 +404,16 @@ function CMSBlockRenderer({ block }: { block: CMSBlock }) {
       return <ImagePlaceholder {...block} />;
     case "comparisonCards":
       return <ComparisonCards {...block} />;
+    case "miniChart":
+      return <MiniChart {...block} />;
+    case "stepList":
+      return <StepList {...block} />;
+    case "scenarioCard":
+      return <ScenarioCard {...block} />;
+    case "decisionTree":
+      return <DecisionTree {...block} />;
+    case "recapCard":
+      return <RecapCard {...block} />;
     default:
       return null;
   }

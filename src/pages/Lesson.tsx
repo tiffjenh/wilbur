@@ -132,6 +132,26 @@ export const Lesson: React.FC = () => {
     getPublishedLesson(slug)
       .then((result) => {
         if (cancelled) return;
+        // Prefer local snapshot when published/CMS has no real content (e.g. empty Supabase row)
+        const localSnap = getLocalSnapshot(slug);
+        if (localSnap && (!result || !result.record?.content_blocks?.length)) {
+          try {
+            setPublishedLesson(null);
+            setCmsLesson(null);
+            setLocalSnapshotRecord(mapSnapshotToLesson(localSnap, slug, null, null));
+          } catch (_) {
+            setLocalSnapshotRecord(null);
+            if (result) {
+              setPublishedLesson(result);
+              setCmsLesson(null);
+            } else {
+              setPublishedLesson(null);
+              return getLessonBySlug(slug);
+            }
+          }
+          setLessonLoading(false);
+          return;
+        }
         if (result) {
           setPublishedLesson(result);
           setCmsLesson(null);
