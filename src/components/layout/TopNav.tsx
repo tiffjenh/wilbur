@@ -514,9 +514,14 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
             />
           ))}
           {import.meta.env.DEV && (
-            <Link to="/dev/lesson-preview" style={{ fontSize: "var(--text-base)", fontWeight: 500, color: "var(--color-text-secondary)", textDecoration: "none", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>
-              Lesson Preview
-            </Link>
+            <>
+              <Link to="/dev/lesson-preview" style={{ fontSize: "var(--text-base)", fontWeight: 500, color: "var(--color-text-secondary)", textDecoration: "none", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>
+                Lesson Preview
+              </Link>
+              <Link to="/dev/catalog-audit" style={{ fontSize: "var(--text-base)", fontWeight: 500, color: "var(--color-text-secondary)", textDecoration: "none", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>
+                Catalog Audit
+              </Link>
+            </>
           )}
           {pathname === "/" && (
             <>
@@ -562,9 +567,14 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
             </Link>
           ))}
           {import.meta.env.DEV && (
-            <Link to="/dev/lesson-preview" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>
-              Lesson Preview
-            </Link>
+            <>
+              <Link to="/dev/lesson-preview" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>
+                Lesson Preview
+              </Link>
+              <Link to="/dev/catalog-audit" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>
+                Catalog Audit
+              </Link>
+            </>
           )}
           {pathname === "/" && !showFullNav && (
             <>

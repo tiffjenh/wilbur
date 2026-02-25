@@ -95,6 +95,17 @@ export const LESSON_REGISTRY: Record<string, Omit<Lesson, "status" | "order">> =
   "paycheck-basics":            { id: "fj5", slug: "paycheck-basics",            title: "Your Paycheck Explained (W-2, Withholding, Take-Home Pay)", category: "Taxes", duration: "7 min"  },
   "work-benefits-101":          { id: "fj6", slug: "work-benefits-101",          title: "Work Benefits 101: 401(k), Match, HSA/FSA (In Plain English)", category: "Work Benefits & Retirement", duration: "8 min"  },
   "investing-basics-no-stock-picking": { id: "fj7", slug: "investing-basics-no-stock-picking", title: "Investing Basics (Without Stock-Picking)", category: "Investing Basics", duration: "8 min"  },
+  // V1 curriculum (Step 7) — canonical IDs for library
+  "how-interest-works":            { id: "v1-interest",  slug: "how-interest-works",            title: "How Interest Works (In Plain English)",     category: "Credit & Debt",   duration: "8 min"  },
+  "compound-growth-basics":       { id: "v1-compound", slug: "compound-growth-basics",       title: "Compound Growth (Why Starting Small Matters)", category: "Investing Basics", duration: "8 min"  },
+  "taxes-how-to-file":            { id: "v1-file",     slug: "taxes-how-to-file",            title: "How to File Your Taxes",                    category: "Taxes",           duration: "10 min" },
+  "tax-brackets-explained":       { id: "v1-brackets", slug: "tax-brackets-explained",       title: "Tax Brackets (Marginal vs Effective)",      category: "Taxes",           duration: "10 min" },
+  "write-offs-explained":         { id: "v1-writeoff", slug: "write-offs-explained",         title: "Write-Offs Explained",                     category: "Taxes",           duration: "8 min"  },
+  "brokerage-account-basics":     { id: "v1-broker",   slug: "brokerage-account-basics",     title: "Brokerage Accounts (How They Work)",        category: "Investing Basics", duration: "9 min"  },
+  "etfs-and-index-funds":        { id: "v1-etf",     slug: "etfs-and-index-funds",        title: "ETFs & Index Funds (The Beginner Sweet Spot)", category: "Investing Basics", duration: "12 min" },
+  "rent-vs-buy":                 { id: "v1-rentbuy", slug: "rent-vs-buy",                 title: "Rent vs Buy (How to Decide Without Stress)", category: "Real Estate",      duration: "10 min" },
+  "mortgage-basics":              { id: "v1-mortgage", slug: "mortgage-basics",              title: "Mortgage Basics (Pre-approval, Rates)",     category: "Real Estate",      duration: "12 min" },
+  "insurance-basics":             { id: "v1-insure",   slug: "insurance-basics",             title: "Insurance Basics (Health, Auto, Renters)",  category: "Insurance & Risk", duration: "9 min"  },
 };
 
 /**

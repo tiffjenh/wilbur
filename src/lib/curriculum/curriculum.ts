@@ -131,3 +131,8 @@ export function getLessonsByDomain(domainId: string): Lesson[] {
 export function getLessonById(id: string): Lesson | undefined {
   return LESSONS.find((l) => l.id === id);
 }
+
+/** All lesson IDs referenced by the Library UI (categories → lessons). Used for catalog audit. */
+export function getLibraryLessonIds(): string[] {
+  return LESSONS.map((l) => l.id);
+}

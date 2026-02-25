@@ -21,6 +21,7 @@ import { AdminHome } from "@/pages/admin/AdminHome";
 import { AdminLessonsList } from "@/pages/admin/AdminLessonsList";
 import { AdminLessonEditor } from "@/pages/admin/AdminLessonEditor";
 import { AdminLessonPreview } from "@/pages/admin/AdminLessonPreview";
+import CatalogAuditPage from "@/pages/dev/CatalogAuditPage";
 
 const App: React.FC = () => {
   return (
@@ -51,6 +52,7 @@ const App: React.FC = () => {
         <Route path="/admin/lessons/new" element={<AdminRoute><AdminLessonEditor mode="create" /></AdminRoute>} />
         <Route path="/admin/lessons/:id" element={<AdminRoute><AdminLessonEditor mode="edit" /></AdminRoute>} />
         <Route path="/admin/lessons/:id/preview" element={<AdminRoute><AdminLessonPreview /></AdminRoute>} />
+        <Route path="/dev/catalog-audit" element={<CatalogAuditPage />} />
         {/* Catch-all */}
         <Route path="*" element={<Home />} />
       </Routes>

@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AccountPopup } from "@/components/ui/Modal";
 import { POST_ONBOARDING_PROMPT_SIGNUP } from "@/lib/onboardingSchema";
 import { useLearningPath } from "@/hooks/useLearningPath";
+import { isLessonAvailable } from "@/lib/catalog/auditCatalog";
 import { Icon } from "@/components/ui/Icon";
 
 /**
@@ -40,8 +41,13 @@ export const Learning: React.FC = () => {
     } catch { /* ignore */ }
   }, [user]);
 
+  /* Safety: only show lessons that exist in registry and have content (no broken links) */
+  const visibleLessons = lessons.filter((l) => isLessonAvailable(l.id));
+  const visibleRecommended = recommendedLessons.filter((l) => isLessonAvailable(l.id));
+  const visibleSaved = savedLessons.filter((l) => isLessonAvailable(l.id));
+
   /* Convert to Sidebar Lesson shape — no locks; all are available or completed */
-  const sidebarLessons: SidebarLesson[] = lessons.map((l, i) => ({
+  const sidebarLessons: SidebarLesson[] = visibleLessons.map((l, i) => ({
     id: l.id,
     slug: l.id,
     title: l.title,
@@ -51,7 +57,7 @@ export const Learning: React.FC = () => {
     order: i + 1,
   }));
 
-  const completedCount = sidebarLessons.filter(l => l.status === "completed").length;
+  const completedCount = sidebarLessons.filter((l) => l.status === "completed").length;
 
   return (
     <>
@@ -59,7 +65,7 @@ export const Learning: React.FC = () => {
         {/* Sidebar */}
         <Sidebar
           title="Your Path"
-          subtitle={`${completedCount} of ${lessons.length} lessons personalized for you`}
+          subtitle={`${completedCount} of ${visibleLessons.length} lessons personalized for you`}
           lessons={sidebarLessons}
         />
 
@@ -171,17 +177,19 @@ export const Learning: React.FC = () => {
                 </h2>
                 <p style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", color: "var(--color-text-muted)", margin: 0 }}>
                   {completedCount > 0
-                    ? `${completedCount} of ${lessons.length} complete · keep going!`
-                    : `${lessons.length} lessons in your path · updated based on your feedback`}
+                    ? `${completedCount} of ${visibleLessons.length} complete · keep going!`
+                    : `${visibleLessons.length} lessons in your path · updated based on your feedback`}
                 </p>
               </div>
 
               {/* Recommended section */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: "100%", marginBottom: savedLessons.length > 0 ? 32 : 0 }}>
-                {recommendedLessons.map((lesson, i) => {
+              {(() => {
+                const firstIncompleteId = visibleLessons.find((l) => !completed.has(l.id))?.id;
+                return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: "100%", marginBottom: visibleSaved.length > 0 ? 32 : 0 }}>
+                {visibleRecommended.map((lesson, i) => {
                   const isCompleted = completed.has(lesson.id);
-                  const globalFirstIndex = lessons.findIndex(l => !completed.has(l.id));
-                  const isFirst = !isCompleted && globalFirstIndex === i;
+                  const isFirst = !isCompleted && lesson.id === firstIncompleteId;
                   void activeLesson; // reserved for future expanded view
 
                   return (
@@ -278,19 +286,21 @@ export const Learning: React.FC = () => {
                   );
                 })}
               </div>
+                );
+              })()}
 
               {/* Saved / Added by you */}
-              {savedLessons.length > 0 && (
+              {visibleSaved.length > 0 && (
                 <div style={{ marginTop: 8 }}>
                   <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--color-text)", margin: "0 0 12px" }}>
                     Saved / Added by you
                   </h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: "100%" }}>
-                    {savedLessons.map((lesson, i) => {
+                    {visibleSaved.map((lesson, i) => {
                       const isCompleted = completed.has(lesson.id);
-                      const globalFirstIndex = lessons.findIndex(l => !completed.has(l.id));
-                      const idxInAll = recommendedLessons.length + i;
-                      const isFirst = !isCompleted && globalFirstIndex === idxInAll;
+                      const firstIncompleteId = visibleLessons.find((l) => !completed.has(l.id))?.id;
+                      const idxInAll = visibleRecommended.length + i;
+                      const isFirst = !isCompleted && lesson.id === firstIncompleteId;
 
                       return (
                         <div

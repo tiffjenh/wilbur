@@ -5,6 +5,7 @@ import { Icon, IconBox } from "@/components/ui/Icon";
 import { CURRICULUM } from "@/lib/curriculum/curriculum";
 import type { DomainCategory, Lesson as CurriculumLesson } from "@/lib/curriculum/curriculum";
 import { getLessonsByDomain } from "@/lib/curriculum/curriculum";
+import { isLessonAvailable } from "@/lib/catalog/auditCatalog";
 import { addLesson, loadUserAddedSync } from "@/lib/storage/userAddedLessons";
 import type { IconName } from "@/components/ui/Icon";
 
@@ -41,7 +42,7 @@ export const Library: React.FC = () => {
     ...cat,
     slug: cat.id,
     icon: CATEGORY_ICON[cat.id] ?? "book-open",
-    lessonCount: CURRICULUM.lessons.filter((l) => l.domainId === cat.id).length,
+    lessonCount: CURRICULUM.lessons.filter((l) => l.domainId === cat.id && isLessonAvailable(l.id)).length,
   }));
 
   return (
@@ -100,7 +101,7 @@ function levelLabel(level: CurriculumLesson["level"]): string {
 export const LibraryCategory: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const category: DomainCategory | null = slug ? CURRICULUM.categories.find((c) => c.id === slug) ?? null : null;
-  const categoryLessons = slug ? getLessonsByDomain(slug) : [];
+  const categoryLessons = slug ? getLessonsByDomain(slug).filter((l) => isLessonAvailable(l.id)) : [];
   const [addedIds, setAddedIds] = useState<Set<string>>(() => new Set(loadUserAddedSync()));
 
   useEffect(() => {

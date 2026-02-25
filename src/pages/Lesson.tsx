@@ -20,6 +20,10 @@ import { loadFeedbackSync } from "@/lib/storage/lessonProgress";
 import { getLessonBySlug, listLessons } from "@/lib/supabase/lessons";
 import { getPublishedLesson } from "@/lib/lessons/getPublishedLesson";
 import type { LessonBlock as LegacyLessonBlock } from "@/content/lessonTypes";
+import { hasLessonContent } from "@/lib/catalog/auditCatalog";
+import { isLessonInRegistry, isLessonMissingOrEmpty } from "@/lib/catalog/lessonAvailability";
+import { ComingSoonLesson } from "@/components/lessons/ComingSoonLesson";
+import { LEGACY_LESSON_REDIRECTS } from "@/content/curriculum/v1";
 
 /** Map lib/lessons/content blocks to content/lessonTypes blocks for BlockRenderer. */
 function contentBlockToLegacy(block: LessonBlock): LegacyLessonBlock | null {
@@ -91,6 +95,14 @@ export const Lesson: React.FC = () => {
   }, [selectedText]);
 
   const { user } = useAuth();
+
+  // Redirect legacy slugs to canonical lesson URLs
+  useEffect(() => {
+    if (slug && LEGACY_LESSON_REDIRECTS[slug]) {
+      navigate(`/lesson/${LEGACY_LESSON_REDIRECTS[slug]}`, { replace: true });
+    }
+  }, [slug, navigate]);
+
   useEffect(() => {
     try {
       if (!user && sessionStorage.getItem(POST_ONBOARDING_PROMPT_SIGNUP) === "1") {
@@ -196,7 +208,12 @@ export const Lesson: React.FC = () => {
     shouldWarnLesson(catalogLesson, answers, feedbackMap) &&
     !dismissedAdvancedWarning;
 
-  const hasLesson = !!publishedLesson || !!cmsLesson || !!curriculumLesson;
+  const hasLesson =
+    !!publishedLesson ||
+    !!cmsLesson ||
+    !!curriculumLesson ||
+    (!!slug && isLessonInRegistry(slug) && hasLessonContent(slug));
+
   if (lessonLoading && !hasLesson) {
     return (
       <div style={{ padding: "var(--space-8) var(--space-6)", textAlign: "center", color: "var(--color-text-muted)" }}>
@@ -204,13 +221,11 @@ export const Lesson: React.FC = () => {
       </div>
     );
   }
+  if (!lessonLoading && slug && isLessonMissingOrEmpty(slug)) {
+    return <ComingSoonLesson lessonId={slug} />;
+  }
   if (!lessonLoading && !hasLesson) {
-    return (
-      <div style={{ padding: "var(--space-8) var(--space-6)", textAlign: "center" }}>
-        <h2 style={{ fontFamily: "var(--font-serif)", marginBottom: "var(--space-4)" }}>Lesson not found</h2>
-        <Link to="/library" style={{ color: "var(--color-primary)" }}>← Back to Library</Link>
-      </div>
-    );
+    return <ComingSoonLesson lessonId={slug ?? ""} />;
   }
 
   const displayRecord = publishedLesson?.record ?? cmsLesson;
