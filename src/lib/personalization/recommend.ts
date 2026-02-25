@@ -1,8 +1,15 @@
 /**
  * Recommend lesson order from personalization profile and curriculum.
- * Deterministic, stable (no randomness). Auto-injects prerequisites before dependents.
+ * Deterministic, persona-based ordered paths. No sort, no merge, no domain-score ordering.
  */
 import type { PersonalizationProfile } from "./scoring";
+import type { PersonaId } from "@/personalization/types";
+import { toTraits } from "./deriveTraits";
+import { buildLearningPlan } from "./buildLearningPlan";
+import type { LearningPlan } from "./traits";
+
+/** Profile for recommend: may include persona for deterministic path selection. */
+export type RecommendProfile = PersonalizationProfile & { persona?: PersonaId };
 
 /** Minimal lesson shape for scoring (curriculum Lesson). */
 export interface CurriculumLessonForRecommend {
@@ -113,54 +120,22 @@ export function getLessonScoreAndReasons(
   return { score, reasons };
 }
 
-/**
- * Build ordered lesson ids: score all lessons, then output in topological order
- * (prerequisites before dependents), choosing among available lessons by score (desc).
- * Stable tie-break: by id.
- */
+// NEW: plan-based recommendation (chunked + reasons)
+export function recommendPlan(
+  profile: RecommendProfile
+): { recommendedLessonIds: string[]; plan: LearningPlan; lessonReasons: Record<string, string[]> } {
+  const traits = toTraits(profile);
+  const plan = buildLearningPlan(traits);
+  return {
+    recommendedLessonIds: plan.recommendedLessonIds,
+    plan,
+    lessonReasons: plan.lessonReasons,
+  };
+}
+
 export function recommendLessons(
-  profile: PersonalizationProfile,
-  curriculumLessons: CurriculumLessonForRecommend[]
+  profile: RecommendProfile,
+  _curriculumLessons: CurriculumLessonForRecommend[]
 ): string[] {
-  const byId = new Map<string, CurriculumLessonForRecommend>();
-  for (const l of curriculumLessons) byId.set(l.id, l);
-
-  const scored = curriculumLessons.map((l) => ({
-    id: l.id,
-    lesson: l,
-    score: scoreLesson(l, profile),
-  }));
-  scored.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return a.id.localeCompare(b.id);
-  });
-
-  const scoreById = new Map(scored.map((s) => [s.id, s.score]));
-  const out: string[] = [];
-  const added = new Set<string>();
-
-  while (out.length < curriculumLessons.length) {
-    let best: { id: string; score: number } | null = null;
-    for (const s of scored) {
-      if (added.has(s.id)) continue;
-      const prereqsMet = s.lesson.prerequisites.every((pid) => added.has(pid));
-      if (!prereqsMet) continue;
-      const score = scoreById.get(s.id) ?? 0;
-      if (best === null || score > best.score || (score === best.score && s.id < best.id)) {
-        best = { id: s.id, score };
-      }
-    }
-    if (best === null) {
-      // Remaining lessons have unmet prereqs outside curriculum — append by score
-      for (const s of scored) {
-        if (!added.has(s.id)) out.push(s.id);
-        added.add(s.id);
-      }
-      break;
-    }
-    out.push(best.id);
-    added.add(best.id);
-  }
-
-  return out;
+  return recommendPlan(profile).recommendedLessonIds;
 }

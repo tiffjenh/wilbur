@@ -18,7 +18,8 @@ import { loadUserAddedSync, loadUserAdded } from "@/lib/storage/userAddedLessons
 import { toQuestionnaireAnswers, loadAnswersFromStorage } from "@/lib/recommendation/adapter";
 import { LS_LEARNING_MODE } from "@/lib/onboardingSchema";
 import { computePersonalizationProfile } from "@/lib/personalization/scoring";
-import { recommendLessons, getLessonScoreAndReasons, type CurriculumLessonForRecommend } from "@/lib/personalization/recommend";
+import { recommendPlan, getLessonScoreAndReasons, type CurriculumLessonForRecommend } from "@/lib/personalization/recommend";
+import type { LearningPlan } from "@/lib/personalization/traits";
 
 const CURRICULUM_BY_ID: Record<string, CurriculumLesson> = Object.fromEntries(
   CURRICULUM.lessons.map((l) => [l.id, l]),
@@ -84,6 +85,7 @@ export interface LearningPathDebugInfo {
   tier: string;
   pathLessons: { id: string; title: string; reasons: string[] }[];
   top10Scores: { id: string; title: string; score: number; reasons: string[] }[];
+  plan?: LearningPlan;
 }
 
 export interface UseLearningPathResult {
@@ -140,10 +142,10 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
         stateCode: answers.stateCode,
       };
       const profile = computePersonalizationProfile(isBrowseMode ? {} : input);
-      const orderedIds = recommendLessons(profile, CURRICULUM_FOR_RECOMMEND);
+      const { recommendedLessonIds, lessonReasons, plan } = recommendPlan(profile);
 
       const completedSet = new Set(completedList);
-      const recommendedIdsOrdered = orderedIds.filter((id) => !completedSet.has(id)).slice(0, maxLessons);
+      const recommendedIdsOrdered = recommendedLessonIds.filter((id) => !completedSet.has(id)).slice(0, maxLessons);
       const recommendedIds = new Set(recommendedIdsOrdered);
 
       const savedCurriculum = userAddedIds
@@ -158,14 +160,12 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
         isCompleted: completedList.includes(l.id),
       }));
 
-      const newReasonsMap: Record<string, string[]> = {};
+      reasonsMap.current = lessonReasons;
       const recommendedWithMeta: LessonWithMeta[] = recommendedIdsOrdered.map((id) => {
         const cur = CURRICULUM_BY_ID[id];
+        const reasons = lessonReasons[id] ?? [];
         const recShape = cur ? toRecommendShape(cur) : null;
-        const { score, reasons } = recShape
-          ? getLessonScoreAndReasons(recShape, profile)
-          : { score: 0, reasons: [] as string[] };
-        newReasonsMap[id] = reasons;
+        const score = recShape ? getLessonScoreAndReasons(recShape, profile).score : 0;
         if (cur) {
           return { ...cur, _score: score, _reasons: reasons, isCompleted: completedList.includes(id) };
         }
@@ -185,7 +185,6 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
       });
 
       const mergedLessons = [...recommendedWithMeta, ...savedWithMeta];
-      reasonsMap.current = newReasonsMap;
 
       setCompleted(completedSet);
       setLessons(mergedLessons);
@@ -213,6 +212,7 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
           tier: isBrowseMode ? "browse" : profile.targetLevel,
           pathLessons,
           top10Scores: top10,
+          plan,
         });
         if (!isBrowseMode) {
           console.log("[Learning Path]", {
@@ -262,12 +262,11 @@ export function useLearningPath(opts: UseLearningPathOptions = {}): UseLearningP
   }, [generate]);
 
   const getReasons = useCallback((lessonId: string): string[] => {
-    return topReasons(reasonsMap.current[lessonId] ?? []);
+    return reasonsMap.current[lessonId] ?? [];
   }, []);
 
   const getTopReason = useCallback((lessonId: string): string | null => {
-    const reasons = topReasons(reasonsMap.current[lessonId] ?? [], 1);
-    return reasons[0] ?? null;
+    return reasonsMap.current[lessonId]?.[0] ?? null;
   }, []);
 
   const handleFeedback = useCallback(async (lessonId: string, feedback: LessonFeedback) => {

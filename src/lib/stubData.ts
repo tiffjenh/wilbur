@@ -87,6 +87,14 @@ export const LESSON_REGISTRY: Record<string, Omit<Lesson, "status" | "order">> =
   "w2-vs-1099":                 { id: "r-w2",       slug: "w2-vs-1099",           title: "W2 vs 1099: What's the Difference?",     category: "Income Types",        duration: "8 min"  },
   "renting-vs-buying":          { id: "r-rent",     slug: "renting-vs-buying",    title: "Renting vs. Buying a Home",              category: "Housing Basics",      duration: "12 min" },
   "health-insurance-101":       { id: "r-health",   slug: "health-insurance-101", title: "Health Insurance 101",                   category: "Insurance Basics",    duration: "9 min"  },
+  // First Job Out of College track (flagship)
+  "adult-money-game-plan":      { id: "fj1", slug: "adult-money-game-plan",      title: "Your Simple Money Game Plan (What to Do First)", category: "Money Foundations", duration: "6 min"  },
+  "budgeting-in-10-minutes":    { id: "fj2", slug: "budgeting-in-10-minutes",    title: "Budgeting in 10 Minutes (A Simple System That Works)", category: "Budgeting & Cash Flow", duration: "7 min"  },
+  "emergency-fund-basics":      { id: "fj3", slug: "emergency-fund-basics",      title: "Emergency Fund Basics (How to Avoid Money Panic)", category: "Money Foundations", duration: "6 min"  },
+  "credit-cards-statement-balance": { id: "fj4", slug: "credit-cards-statement-balance", title: "Credit Cards: Statement Balance vs Minimum Payment", category: "Credit & Debt", duration: "7 min"  },
+  "paycheck-basics":            { id: "fj5", slug: "paycheck-basics",            title: "Your Paycheck Explained (W-2, Withholding, Take-Home Pay)", category: "Taxes", duration: "7 min"  },
+  "work-benefits-101":          { id: "fj6", slug: "work-benefits-101",          title: "Work Benefits 101: 401(k), Match, HSA/FSA (In Plain English)", category: "Work Benefits & Retirement", duration: "8 min"  },
+  "investing-basics-no-stock-picking": { id: "fj7", slug: "investing-basics-no-stock-picking", title: "Investing Basics (Without Stock-Picking)", category: "Investing Basics", duration: "8 min"  },
 };
 
 /**

@@ -513,6 +513,11 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
               gateLinkClick={item.label === "Dashboard" ? handleDashboardClick : undefined}
             />
           ))}
+          {import.meta.env.DEV && (
+            <Link to="/dev/lesson-preview" style={{ fontSize: "var(--text-base)", fontWeight: 500, color: "var(--color-text-secondary)", textDecoration: "none", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>
+              Lesson Preview
+            </Link>
+          )}
           {pathname === "/" && (
             <>
               <Link to="/learning" style={{ fontSize: "var(--text-base)", fontWeight: 500, color: "var(--color-text-secondary)", textDecoration: "none", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>Learning</Link>
@@ -556,6 +561,11 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
               {item.label}
             </Link>
           ))}
+          {import.meta.env.DEV && (
+            <Link to="/dev/lesson-preview" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>
+              Lesson Preview
+            </Link>
+          )}
           {pathname === "/" && !showFullNav && (
             <>
               <Link to="/learning" onClick={() => setMobileOpen(false)} style={{ display: "block", padding: "13px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: "var(--text-md)", fontWeight: 500, color: "var(--color-text)" }}>Learning</Link>
