@@ -29,43 +29,6 @@ function toRecommendShape(c: CurriculumLesson): CurriculumLessonForRecommend {
   return { id: c.id, level: c.level, tags: c.tags, prerequisites: c.prerequisites };
 }
 
-const CURRICULUM_FOR_RECOMMEND: CurriculumLessonForRecommend[] = CURRICULUM.lessons.map(toRecommendShape);
-
-/* ── Human-readable "Why recommended" copy ──────────────────── */
-
-const REASON_DISPLAY: Record<string, string> = {
-  "goal: home down payment": "Because you're saving for a home in 3–5 years.",
-  "goal: credit for mortgage": "Because your credit score matters for mortgage rates.",
-  "you've invested before: skipping beginner investing": "Because you've invested before, we're skipping the beginner investing module.",
-  "prime home window": "Because you're in a common home-buying age range.",
-  "retirement priority": "Because you're 45+, retirement planning is a priority.",
-  "retirement planning": "Because you're in the 35–44 range, retirement is relevant.",
-  "insurance relevance": "Because insurance and planning matter for your stage.",
-  "tax planning": "Because tax planning is relevant for your situation.",
-  "never invested": "Because you're new to investing.",
-  "confidence low: foundations": "Because you said you feel less confident, we're starting with foundations.",
-  "no savings: emergency fund": "Because you don't have savings yet, we're starting with an emergency fund.",
-  "goal: pay off debt": "Because paying off debt is one of your goals.",
-  "goal: emergency fund": "Because building an emergency fund is one of your goals.",
-  "goal: build investments": "Because building investments is one of your goals.",
-  "regular investor": "Because you invest regularly, we're including growth topics.",
-};
-
-function formatReason(raw: string): string {
-  const clean = raw.replace(/^[+-]\d+\s+/, "").trim();
-  const display = REASON_DISPLAY[clean];
-  if (display) return display;
-  return clean.charAt(0).toUpperCase() + clean.slice(1);
-}
-
-/** Return top N reasons, formatted as human-readable strings. */
-function topReasons(reasons: string[], n = 3): string[] {
-  return reasons
-    .filter(r => !r.startsWith("-") && !r.includes("gated"))
-    .slice(0, n)
-    .map(formatReason);
-}
-
 /* ── Hook ─────────────────────────────────────────────────── */
 
 export interface UseLearningPathOptions {

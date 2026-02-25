@@ -21,7 +21,6 @@ import { AdminHome } from "@/pages/admin/AdminHome";
 import { AdminLessonsList } from "@/pages/admin/AdminLessonsList";
 import { AdminLessonEditor } from "@/pages/admin/AdminLessonEditor";
 import { AdminLessonPreview } from "@/pages/admin/AdminLessonPreview";
-import LessonPreview from "@/pages/dev/LessonPreview";
 
 const App: React.FC = () => {
   return (
@@ -52,8 +51,6 @@ const App: React.FC = () => {
         <Route path="/admin/lessons/new" element={<AdminRoute><AdminLessonEditor mode="create" /></AdminRoute>} />
         <Route path="/admin/lessons/:id" element={<AdminRoute><AdminLessonEditor mode="edit" /></AdminRoute>} />
         <Route path="/admin/lessons/:id/preview" element={<AdminRoute><AdminLessonPreview /></AdminRoute>} />
-        {/* Dev-only: local snapshot preview (no Supabase) */}
-        <Route path="/dev/lesson-preview" element={<LessonPreview />} />
         {/* Catch-all */}
         <Route path="*" element={<Home />} />
       </Routes>

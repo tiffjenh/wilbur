@@ -29,7 +29,7 @@ describe("Step 5: Flagship track (debt stabilizer)", () => {
 
     // 3) Run recommendPlan (hybrid engine) with a profile that has persona + answers for toTraits.
     // toTraits expects UI-style fields; incomeTypes raw values like "W-2 job" map to "w2" so work-benefits-101 is not suppressed.
-    const profile: RecommendProfile = {
+    const profile = {
       persona: personalizationResult.persona,
       questionnaireAnswers: {
         ...answers,
@@ -37,7 +37,7 @@ describe("Step 5: Flagship track (debt stabilizer)", () => {
         financialSituation: ["I have credit card debt"],
         confidenceLevel: 1,
       },
-    } as RecommendProfile;
+    } as unknown as RecommendProfile;
     const { recommendedLessonIds, plan, lessonReasons } = recommendPlan(profile);
 
     // 4) Assert plan.chunks.length === 3
