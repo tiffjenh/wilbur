@@ -34,7 +34,9 @@ export type IconName =
   | "plus"
   | "eye"
   | "eye-off"
-  | "log-out";
+  | "log-out"
+  | "hand-raised"
+  | "message-circle";
 
 interface IconProps {
   name: IconName;
@@ -216,6 +218,19 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  "hand-raised": (
+    <>
+      <circle cx="12" cy="6" r="3.5" stroke="currentColor" />
+      <path d="M12 10v8" stroke="currentColor" strokeLinecap="round" />
+      <path d="M12 10l-4-5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  "message-circle": (
+    <>
+      <circle cx="12" cy="11" r="7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 16L2 21l5-3z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </>
   ),
 };
