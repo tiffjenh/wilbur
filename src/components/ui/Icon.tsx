@@ -192,8 +192,9 @@ const PATHS: Record<IconName, React.ReactNode> = {
   ),
   "money-bag": (
     <>
-      <path d="M12 4c-2 0-3.5 1.5-4 3H5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-3c-.5-1.5-2-3-4-3z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M10 5h4" stroke="currentColor" strokeLinecap="round" />
+      {/* Bag: tied top, rounded bottom, $ on front */}
+      <path d="M12 4.5L8 7v11q0 1.5 4 2 4-.5 4-2V7L12 4.5z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M12 8.5v7M11 10.2c0-.5.6-.9 1.2-.9s1.2.4 1.2.9-.6.9-1.2.9-1.2.5-1.2 1 .6 1 1.2 1 1.2-.4 1.2-1-.6-1-1.2-1" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </>
   ),
   "plus": (

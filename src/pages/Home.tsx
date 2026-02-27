@@ -158,41 +158,44 @@ export const Home: React.FC = () => {
               color: "var(--color-text)",
               marginBottom: "6px",
             }}>
-              Finance, but
+              Money lessons
               <br />
-              make it fun
+              that match
+              <br />
+              <span style={{ position: "relative", display: "inline-block", paddingBottom: 14 }}>
+                your life
+                {/* Pink underline under "your life" */}
+                <svg width="120" height="12" viewBox="0 0 120 12" fill="none" style={{ position: "absolute", left: 0, bottom: 2, width: "100%", height: 12, overflow: "visible" }} aria-hidden="true">
+                  <path
+                    d="M 2 8 Q 30 4, 60 7 Q 90 10, 118 6"
+                    stroke="#e08a9a"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                    opacity="0.9"
+                  />
+                  <path
+                    d="M 0 9.5 Q 30 5.5, 60 8.5 T 120 7"
+                    stroke="#d4534a"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                    opacity="0.85"
+                  />
+                </svg>
+              </span>
             </h1>
-
-            {/* Hand-drawn style underline under "make it fun" — soft curve, not straight */}
-            <svg width="200" height="12" viewBox="0 0 200 12" fill="none" style={{ display: "block", marginBottom: "18px", overflow: "visible" }} aria-hidden="true">
-              <path
-                d="M 2 8 Q 45 4, 95 7 Q 145 10, 198 6"
-                stroke="#e08a9a"
-                strokeWidth="4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-                opacity="0.9"
-              />
-              <path
-                d="M 0 9.5 Q 50 5.5, 100 8.5 T 200 7"
-                stroke="#d4534a"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-                opacity="0.85"
-              />
-            </svg>
 
             <p style={{
               fontSize: "var(--text-base)",
               color: "var(--color-text-muted)",
               lineHeight: 1.7,
               marginBottom: "28px",
-              maxWidth: "380px",
+              maxWidth: "420px",
             }}>
-              Learn money stuff that actually matters to you. No boring lectures. No intimidating jargon. Just clear, visual lessons.
+              Wilbur creates a personalized learning path so you can understand money, finance, and investing — without wasting time on what doesn't matter.
             </p>
 
             {isLoggedIn ? (
@@ -228,9 +231,9 @@ export const Home: React.FC = () => {
                   alignItems: "center",
                   gap: "8px",
                   padding: "14px 30px",
-                  backgroundColor: "var(--color-pink)",
-                  color: "var(--color-black)",
-                  border: "2px solid var(--color-black)",
+                  backgroundColor: "var(--color-primary)",
+                  color: "#fff",
+                  border: "2px solid var(--color-primary)",
                   borderRadius: "var(--radius-lg)",
                   fontSize: "var(--text-base)",
                   fontWeight: 600,
@@ -242,7 +245,6 @@ export const Home: React.FC = () => {
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.filter = "brightness(0.97)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.filter = "none"; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}
               >
-                <Icon name="money-bag" size={18} strokeWidth={2} color="currentColor" style={{ flexShrink: 0 }} />
                 Get started
               </button>
             )}
@@ -288,33 +290,75 @@ export const Home: React.FC = () => {
         </div>
       </div>
 
-      {/* ── "Dead simple" section ────────────────────── */}
-      <div style={{ padding: "0 32px 56px", maxWidth: "1200px", margin: "0 auto", width: "100%" }}>
+      {/* ── Democratizing financial literacy section ────────────────────── */}
+      <div style={{ padding: "0 32px 56px", maxWidth: "560px", margin: "0 auto", width: "100%" }}>
         <div style={{
           backgroundColor: "var(--color-primary)",
-          borderRadius: "var(--radius-3xl)",
-          padding: "68px 56px",
+          borderRadius: "var(--radius-2xl)",
+          padding: "32px 28px 28px",
           textAlign: "center",
         }}>
           <h2 style={{
             fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-dead-simple)",
+            fontSize: "clamp(0.875rem, 1.5vw, 1.125rem)",
             fontWeight: 700,
             color: "#fff",
-            marginBottom: "16px",
-            lineHeight: 1.12,
+            marginBottom: "10px",
+            lineHeight: 1.2,
           }}>
-            Dead simple
+            Democratizing financial literacy — 100% free
           </h2>
           <p style={{
-            fontSize: "var(--text-base)",
+            fontSize: "var(--text-sm)",
             color: "rgba(255,255,255,0.72)",
-            maxWidth: "480px",
-            margin: "0 auto",
-            lineHeight: 1.72,
+            maxWidth: "100%",
+            margin: "0 auto 20px",
+            lineHeight: 1.6,
           }}>
-            Answer a few questions, get a learning path made just for you, and start understanding money in minutes.
+            Answer a few questions, get a learning path made just for you, and start understanding money in minutes. Takes about 2 minutes. No account needed to start.
           </p>
+
+          {/* Three separate step modules */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: 10,
+            margin: "0 auto",
+          }}>
+            <div style={{
+              padding: "10px 12px",
+              backgroundColor: "var(--color-bg)",
+              textAlign: "left",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--color-border-light)",
+            }}>
+              <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 2, fontFamily: "var(--font-sans)" }}>01</div>
+              <h3 style={{ fontFamily: "var(--font-sans)", fontSize: 13, fontWeight: 700, color: "var(--color-text)", margin: "0 0 4px" }}>Tell us about you</h3>
+              <p style={{ fontFamily: "var(--font-sans)", fontSize: 11, color: "var(--color-text-secondary)", margin: 0, lineHeight: 1.4 }}>Quick questions about your life, goals, and money situation.</p>
+            </div>
+            <div style={{
+              padding: "10px 12px",
+              backgroundColor: "var(--color-bg)",
+              textAlign: "left",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--color-border-light)",
+            }}>
+              <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 2, fontFamily: "var(--font-sans)" }}>02</div>
+              <h3 style={{ fontFamily: "var(--font-sans)", fontSize: 13, fontWeight: 700, color: "var(--color-text)", margin: "0 0 4px" }}>Get your path</h3>
+              <p style={{ fontFamily: "var(--font-sans)", fontSize: 11, color: "var(--color-text-secondary)", margin: 0, lineHeight: 1.4 }}>We'll show you only what's relevant to you right now.</p>
+            </div>
+            <div style={{
+              padding: "10px 12px",
+              backgroundColor: "var(--color-bg)",
+              textAlign: "left",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--color-border-light)",
+            }}>
+              <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 2, fontFamily: "var(--font-sans)" }}>03</div>
+              <h3 style={{ fontFamily: "var(--font-sans)", fontSize: 13, fontWeight: 700, color: "var(--color-text)", margin: "0 0 4px" }}>Learn & grow</h3>
+              <p style={{ fontFamily: "var(--font-sans)", fontSize: 11, color: "var(--color-text-secondary)", margin: 0, lineHeight: 1.4 }}>Visual lessons, interactive tools, AI help when you need it.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
