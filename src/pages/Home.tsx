@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { MascotPink } from "@/components/ui/MascotPink";
-import { MascotGreen } from "@/components/ui/MascotGreen";
 import { Icon } from "@/components/ui/Icon";
 
 /** Floating dollar badge — smaller and more subtle per mock */
@@ -72,7 +70,7 @@ const GetStartedTransition: React.FC<{ onDone: () => void }> = ({ onDone }) => {
       <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
         {/* Pig with shake */}
         <div style={{ animation: "pigShake 1.8s ease-in-out infinite" }}>
-          <MascotPink size={140} />
+          <img src="/wilbur-pink-pig.png" alt="" width={140} height={140} style={{ display: "block", objectFit: "contain" }} />
         </div>
         {/* Gold coin dropping into pig back */}
         <div
@@ -192,6 +190,7 @@ export const Home: React.FC = () => {
               fontSize: "var(--text-base)",
               color: "var(--color-text-muted)",
               lineHeight: 1.7,
+              marginTop: "28px",
               marginBottom: "28px",
               maxWidth: "420px",
             }}>
@@ -277,15 +276,16 @@ export const Home: React.FC = () => {
           <FloatingDollar style={{ left: "18%", bottom: "20%" }} delay={350} />
           <FloatingDollar style={{ left: "32%", bottom: "6%" }} delay={700} />
           <FloatingDollar style={{ right: "4%", top: "12%" }} delay={150} />
+          <FloatingDollar style={{ left: "12%", top: "8%" }} delay={200} />
+          <FloatingDollar style={{ left: "24%", top: "14%" }} delay={500} />
+          <FloatingDollar style={{ right: "14%", top: "28%" }} delay={400} />
+          <FloatingDollar style={{ right: "22%", bottom: "14%" }} delay={600} />
+          <FloatingDollar style={{ left: "8%", bottom: "28%" }} delay={250} />
+          <FloatingDollar style={{ right: "8%", bottom: "8%" }} delay={550} />
 
-          {/* Green pig — behind, larger scale */}
-          <div style={{ position: "absolute", bottom: "0", right: "8%", zIndex: 1 }}>
-            <MascotGreen size={200} animate />
-          </div>
-
-          {/* Pink pig — front, larger, overlapping green (reduced marginRight for overlap) */}
-          <div style={{ position: "relative", zIndex: 2, marginRight: "48px", marginBottom: "0" }}>
-            <MascotPink size={260} animate />
+          {/* Two pigs (pink + green) with float animation — 30% larger */}
+          <div style={{ position: "relative", zIndex: 2, marginBottom: "0", animation: "floatY 3.2s ease-in-out infinite" }}>
+            <img src="/wilbur-pigs-together.png" alt="" width={364} height={364} style={{ display: "block", objectFit: "contain" }} />
           </div>
         </div>
       </div>

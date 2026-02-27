@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/Button";
 import { AccountPopup } from "../ui/Modal";
-import { MascotPink } from "../ui/MascotPink";
 import { Icon, type IconName } from "../ui/Icon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -490,9 +489,7 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
 
         {/* Logo — always visible */}
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", flexShrink: 0 }}>
-          <div style={{ width: "26px", height: "26px", overflow: "hidden", borderRadius: "50%", backgroundColor: "var(--color-pink-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <MascotPink size={34} style={{ marginTop: "6px" }} />
-          </div>
+          <img src="/wilbur-logo-pig.png" alt="" width={34} height={34} style={{ display: "block", objectFit: "contain" }} />
           <span style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-xl)", fontWeight: 600, color: "var(--color-text)", letterSpacing: "-0.01em" }}>
             Wilbur
           </span>
@@ -552,9 +549,7 @@ export const TopNav: React.FC<{ onMenuOpen?: () => void }> = ({ onMenuOpen }) =>
         <div style={{ padding: "24px 20px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "28px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-              <div style={{ width: "24px", height: "24px", overflow: "hidden", borderRadius: "50%", backgroundColor: "var(--color-pink-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <MascotPink size={30} style={{ marginTop: "5px" }} />
-              </div>
+              <img src="/wilbur-logo-pig.png" alt="" width={30} height={30} style={{ display: "block", objectFit: "contain" }} />
               <span style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-lg)", fontWeight: 600 }}>Wilbur</span>
             </div>
             <button onClick={() => setMobileOpen(false)} style={{ padding: "4px", color: "var(--color-text-muted)" }}>
